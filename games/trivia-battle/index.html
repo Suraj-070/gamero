@@ -1,0 +1,1303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trivia Battle - GAMERO</title>
+    <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0a0e27;
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Animated gradient background */
+        .bg-gradient {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            background-size: 200% 200%;
+            animation: gradientShift 15s ease infinite;
+            z-index: -1;
+        }
+
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Glass container */
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 40px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .screen {
+            display: none;
+        }
+
+        .screen.active {
+            display: block;
+        }
+
+        /* Back link */
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: rgba(255, 255, 255, 0.9);
+            text-decoration: none;
+            font-weight: 600;
+            margin-bottom: 30px;
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50px;
+            transition: all 0.3s;
+        }
+
+        .back-link:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateX(-5px);
+        }
+
+        /* Typography */
+        h1 {
+            text-align: center;
+            font-size: 3em;
+            font-weight: 900;
+            background: linear-gradient(135deg, #fff 0%, #f0f0f0 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 40px;
+            font-size: 1.1em;
+        }
+
+        /* Input groups */
+        .input-group {
+            margin-bottom: 24px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+            color: white;
+            font-weight: 600;
+            font-size: 0.95em;
+        }
+
+        input[type="text"], select {
+            width: 100%;
+            padding: 16px;
+            font-size: 1em;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            transition: all 0.3s;
+            font-family: 'Inter', sans-serif;
+        }
+
+        input[type="text"]::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        input[type="text"]:focus, select:focus {
+            outline: none;
+            border-color: rgba(255, 255, 255, 0.6);
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        select {
+            cursor: pointer;
+        }
+
+        select option {
+            background: #2d3748;
+            color: white;
+        }
+
+        /* Buttons */
+        button {
+            width: 100%;
+            padding: 16px;
+            font-size: 1em;
+            font-weight: 700;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.85) 100%);
+            color: #667eea;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+            color: white;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(72, 187, 120, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(245, 101, 101, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        /* Info box */
+        .info-box {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 24px;
+            border-radius: 16px;
+            margin-bottom: 24px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .room-code {
+            font-size: 3em;
+            font-weight: 900;
+            color: white;
+            letter-spacing: 8px;
+            margin: 16px 0;
+            text-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 10px 20px;
+            border-radius: 100px;
+            font-size: 0.9em;
+            font-weight: 600;
+            margin: 8px;
+            backdrop-filter: blur(10px);
+        }
+
+        .status-waiting {
+            background: rgba(246, 173, 85, 0.8);
+            color: white;
+        }
+
+        .status-ready {
+            background: rgba(72, 187, 120, 0.8);
+            color: white;
+        }
+
+        /* Error message */
+        .error-message {
+            background: rgba(245, 101, 101, 0.2);
+            border: 1px solid rgba(245, 101, 101, 0.5);
+            color: white;
+            padding: 16px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        /* Game header */
+        .game-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .round-info {
+            color: white;
+            font-size: 1.1em;
+            font-weight: 600;
+        }
+
+        /* Player scores */
+        .player-scores {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .player-card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 16px;
+            text-align: center;
+            border: 2px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .player-card.me {
+            border-color: rgba(72, 187, 120, 0.5);
+        }
+
+        .player-name {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.9em;
+            margin-bottom: 8px;
+        }
+
+        .player-score {
+            font-size: 2.5em;
+            font-weight: 900;
+            color: white;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        .streak {
+            color: #f6ad55;
+            font-size: 0.9em;
+            margin-top: 8px;
+            font-weight: 600;
+        }
+
+        /* Question card */
+        .question-card {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 40px;
+            border-radius: 20px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .category-badge {
+            display: inline-block;
+            background: rgba(102, 126, 234, 0.3);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .question-number {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.9em;
+            margin-bottom: 20px;
+        }
+
+        .question-text {
+            font-size: 1.5em;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 30px;
+            line-height: 1.4;
+        }
+
+        /* Timer */
+        .timer-container {
+            margin-bottom: 30px;
+        }
+
+        .timer-text {
+            color: white;
+            font-size: 1em;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .timer-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 100px;
+            overflow: hidden;
+        }
+
+        .timer-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #48bb78 0%, #f6ad55 50%, #f56565 100%);
+            border-radius: 100px;
+            transition: width 0.1s linear;
+        }
+
+        /* Answer options */
+        .answer-options {
+            display: grid;
+            gap: 16px;
+        }
+
+        .answer-option {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            cursor: pointer;
+            transition: all 0.3s;
+            color: white;
+            font-size: 1.1em;
+            text-align: left;
+        }
+
+        .answer-option:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.4);
+            transform: translateX(5px);
+        }
+
+        .answer-option.selected {
+            background: rgba(102, 126, 234, 0.3);
+            border-color: rgba(102, 126, 234, 0.6);
+        }
+
+        .answer-option.correct {
+            background: rgba(72, 187, 120, 0.3);
+            border-color: rgba(72, 187, 120, 0.8);
+            animation: correctPulse 0.5s;
+        }
+
+        .answer-option.incorrect {
+            background: rgba(245, 101, 101, 0.3);
+            border-color: rgba(245, 101, 101, 0.8);
+            animation: shake 0.5s;
+        }
+
+        .answer-option.disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        @keyframes correctPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        .answer-label {
+            font-weight: 700;
+            margin-right: 12px;
+            opacity: 0.7;
+        }
+
+        /* Waiting state */
+        .waiting-state {
+            text-align: center;
+            padding: 40px;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .waiting-state .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Game over */
+        .game-over {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.3) 0%, rgba(118, 75, 162, 0.3) 100%);
+            padding: 50px;
+            border-radius: 20px;
+            text-align: center;
+            margin-bottom: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .game-over h2 {
+            font-size: 3em;
+            color: white;
+            margin-bottom: 20px;
+        }
+
+        .winner-text {
+            font-size: 1.5em;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 30px;
+        }
+
+        .final-scores {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .final-score-card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 24px;
+            border-radius: 16px;
+        }
+
+        .final-score-card h3 {
+            color: white;
+            font-size: 1.1em;
+            margin-bottom: 10px;
+        }
+
+        .final-score-card .score {
+            font-size: 3em;
+            font-weight: 900;
+            color: white;
+        }
+
+        /* Category grid */
+        .category-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 30px;
+        }
+
+        .category-option {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 24px;
+            border-radius: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+
+        .category-option:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.4);
+            transform: translateY(-5px);
+        }
+
+        .category-option.selected {
+            background: rgba(102, 126, 234, 0.3);
+            border-color: rgba(102, 126, 234, 0.6);
+        }
+
+        .category-icon {
+            font-size: 3em;
+            margin-bottom: 12px;
+        }
+
+        .category-name {
+            color: white;
+            font-weight: 600;
+            font-size: 1em;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2em;
+            }
+
+            .player-scores {
+                grid-template-columns: 1fr;
+            }
+
+            .question-text {
+                font-size: 1.2em;
+            }
+
+            .final-scores {
+                grid-template-columns: 1fr;
+            }
+
+            .category-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-gradient"></div>
+
+    <div class="container">
+        <!-- Home Screen -->
+        <div id="homeScreen" class="screen active">
+            <a href="../../index.html" class="back-link">← Back to GAMERO</a>
+            
+            <div class="glass-card">
+                <h1>🧠 Trivia Battle</h1>
+                <p class="subtitle">Test your knowledge against friends!</p>
+                
+                <div class="info-box">
+                    <p style="color: rgba(255,255,255,0.9); font-size: 1.1em; margin-bottom: 12px;">
+                        📚 4,000+ Questions | 🎯 24 Categories | ⏱️ Timed Rounds
+                    </p>
+                </div>
+                
+                <div class="input-group">
+                    <label for="playerName">Your Name:</label>
+                    <input type="text" id="playerName" placeholder="Enter your name" autocomplete="off">
+                </div>
+                
+                <button class="btn-primary" onclick="createRoom()">🎮 Create Game (Host)</button>
+                <button class="btn-success" onclick="showJoinScreen()">🔗 Join Game</button>
+            </div>
+        </div>
+
+        <!-- Join Screen -->
+        <div id="joinScreen" class="screen">
+            <a href="#" class="back-link" onclick="showHomeScreen(); return false;">← Back</a>
+            
+            <div class="glass-card">
+                <h1>🔗 Join Game</h1>
+                
+                <div class="input-group">
+                    <label for="joinName">Your Name:</label>
+                    <input type="text" id="joinName" placeholder="Enter your name" autocomplete="off">
+                </div>
+                
+                <div class="input-group">
+                    <label for="roomCode">Room Code:</label>
+                    <input type="text" id="roomCode" placeholder="Enter 6-digit code" maxlength="6" style="text-transform: uppercase;" autocomplete="off">
+                </div>
+                
+                <button class="btn-success" onclick="joinRoom()">Join Room</button>
+                <button class="btn-danger" onclick="showHomeScreen()">Cancel</button>
+                
+                <div id="joinError" class="error-message" style="display: none;"></div>
+            </div>
+        </div>
+
+        <!-- Setup Screen (Category Selection) -->
+        <div id="setupScreen" class="screen">
+            <div class="glass-card">
+                <h1>⚙️ Game Setup</h1>
+                
+                <div class="info-box">
+                    <p style="color: rgba(255,255,255,0.7); font-size: 0.9em; margin-bottom: 5px;">Room Code:</p>
+                    <div id="setupRoomCode" class="room-code">------</div>
+                    <div id="setupStatus"></div>
+                </div>
+                
+                <div id="setupArea">
+                    <div class="input-group">
+                        <label>Select Category:</label>
+                        <select id="categorySelect">
+                            <option value="9">General Knowledge 🌍</option>
+                            <option value="11">Film 🎬</option>
+                            <option value="12">Music 🎵</option>
+                            <option value="14">Television 📺</option>
+                            <option value="15">Video Games 🎮</option>
+                            <option value="17">Science & Nature 🔬</option>
+                            <option value="18">Computers 💻</option>
+                            <option value="21">Sports ⚾</option>
+                            <option value="22">Geography 🗺️</option>
+                            <option value="23">History 📜</option>
+                            <option value="27">Animals 🐾</option>
+                            <option value="31">Anime & Manga 🇯🇵</option>
+                        </select>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label>Difficulty:</label>
+                        <select id="difficultySelect">
+                            <option value="easy">Easy ⭐</option>
+                            <option value="medium" selected>Medium ⭐⭐</option>
+                            <option value="hard">Hard ⭐⭐⭐</option>
+                        </select>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label>Number of Rounds:</label>
+                        <select id="roundsSelect">
+                            <option value="5">5 Rounds (Quick)</option>
+                            <option value="10" selected>10 Rounds (Standard)</option>
+                            <option value="15">15 Rounds (Long)</option>
+                        </select>
+                    </div>
+                    
+                    <button class="btn-primary" onclick="startGame()">🚀 Start Game</button>
+                </div>
+
+                <button class="btn-danger" onclick="leaveGame()">🚪 Leave Game</button>
+            </div>
+        </div>
+
+        <!-- Game Screen -->
+        <div id="gameScreen" class="screen">
+            <div class="glass-card">
+                <div class="game-header">
+                    <div class="round-info">
+                        <span id="currentRound">Round 1</span> / <span id="totalRounds">10</span>
+                    </div>
+                    <div class="round-info" id="categoryDisplay">Category: General Knowledge</div>
+                </div>
+
+                <div class="player-scores">
+                    <div class="player-card me">
+                        <div class="player-name">🎮 <span id="myNameGame"></span></div>
+                        <div class="player-score" id="myScore">0</div>
+                        <div class="streak" id="myStreak"></div>
+                    </div>
+                    <div class="player-card">
+                        <div class="player-name">👤 <span id="partnerNameGame"></span></div>
+                        <div class="player-score" id="partnerScore">0</div>
+                        <div class="streak" id="partnerStreak"></div>
+                    </div>
+                </div>
+
+                <div class="timer-container" id="timerContainer">
+                    <div class="timer-text"><span id="timerText">20</span> seconds remaining</div>
+                    <div class="timer-bar">
+                        <div class="timer-fill" id="timerFill" style="width: 100%;"></div>
+                    </div>
+                </div>
+
+                <div class="question-card">
+                    <div class="question-number" id="questionNumber">Question 1/10</div>
+                    <div class="question-text" id="questionText">Loading question...</div>
+                    
+                    <div class="answer-options" id="answerOptions">
+                        <!-- Answers will be inserted here -->
+                    </div>
+                </div>
+
+                <div id="waitingForPartner" class="waiting-state" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>Waiting for partner to answer...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="gameOverScreen" class="screen">
+            <div class="glass-card">
+                <div class="game-over">
+                    <h2 id="gameOverEmoji">🎉</h2>
+                    <div class="winner-text" id="winnerText">You Won!</div>
+                    
+                    <div class="final-scores">
+                        <div class="final-score-card">
+                            <h3 id="finalMyName">You</h3>
+                            <div class="score" id="finalMyScore">0</div>
+                            <p style="color: rgba(255,255,255,0.7); margin-top: 8px;">
+                                <span id="finalMyCorrect">0</span> correct answers
+                            </p>
+                        </div>
+                        <div class="final-score-card">
+                            <h3 id="finalPartnerName">Partner</h3>
+                            <div class="score" id="finalPartnerScore">0</div>
+                            <p style="color: rgba(255,255,255,0.7); margin-top: 8px;">
+                                <span id="finalPartnerCorrect">0</span> correct answers
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="hostResetControls" style="display: none;">
+                    <button class="btn-primary" onclick="resetGame()">🔄 Play Again</button>
+                </div>
+                <button class="btn-danger" onclick="leaveGame()">🚪 Back to GAMERO</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // CHANGE THIS URL TO YOUR DEPLOYED SERVER
+        const socket = io('http://localhost:3001');
+        
+        let myPlayerName = '';
+        let partnerPlayerName = '';
+        let currentRoomCode = '';
+        let isHost = false;
+        let myScore = 0;
+        let partnerScore = 0;
+        let myStreak = 0;
+        let partnerStreak = 0;
+        let myCorrectAnswers = 0;
+        let partnerCorrectAnswers = 0;
+        let currentQuestion = null;
+        let myAnswer = null;
+        let timerInterval = null;
+
+        // Socket event listeners
+        socket.on('roomCreated', ({ roomCode, playerName, isHost: host }) => {
+            currentRoomCode = roomCode;
+            myPlayerName = playerName;
+            isHost = host;
+            document.getElementById('setupRoomCode').textContent = roomCode;
+            document.getElementById('setupStatus').innerHTML = 
+                '<span class="status-badge status-waiting">⏳ Waiting for partner...</span>';
+            showScreen('setupScreen');
+        });
+
+        socket.on('partnerJoined', ({ partnerName }) => {
+            partnerPlayerName = partnerName;
+            document.getElementById('setupStatus').innerHTML = 
+                `<span class="status-badge status-ready">✅ ${partnerName} joined!</span>`;
+            if (!isHost) {
+                document.getElementById('setupArea').style.display = 'none';
+                document.getElementById('setupStatus').innerHTML += 
+                    '<p style="color: rgba(255,255,255,0.8); margin-top: 16px;">Waiting for host to start the game...</p>';
+            }
+        });
+
+        socket.on('roomJoined', ({ roomCode, playerName, isHost: host, hostName }) => {
+            currentRoomCode = roomCode;
+            myPlayerName = playerName;
+            isHost = host;
+            partnerPlayerName = hostName;
+            document.getElementById('setupRoomCode').textContent = roomCode;
+            document.getElementById('setupStatus').innerHTML = 
+                `<span class="status-badge status-ready">✅ Connected to ${hostName}'s game!</span>`;
+            document.getElementById('setupArea').style.display = 'none';
+            showScreen('setupScreen');
+        });
+
+        socket.on('gameStarted', ({ hostName, partnerName, category, difficulty, totalRounds }) => {
+            document.getElementById('myNameGame').textContent = myPlayerName;
+            document.getElementById('partnerNameGame').textContent = partnerPlayerName;
+            document.getElementById('totalRounds').textContent = totalRounds;
+            document.getElementById('categoryDisplay').textContent = `Category: ${getCategoryName(category)}`;
+            showScreen('gameScreen');
+
+            if (window.currentLoader) {
+        window.currentLoader.close();
+        window.currentLoader = null;
+    }
+        });
+
+        socket.on('newQuestion', ({ question, roundNumber, totalRounds }) => {
+            currentQuestion = question;
+            myAnswer = null;
+            displayQuestion(question, roundNumber, totalRounds);
+        });
+
+        socket.on('roundResult', ({ hostCorrect, partnerCorrect, hostScore, partnerScore, hostStreak, partnerStreak, correctAnswer }) => {
+            const myCorrect = isHost ? hostCorrect : partnerCorrect;
+            myScore = isHost ? hostScore : partnerScore;
+            partnerScore = isHost ? partnerScore : hostScore;
+            myStreak = isHost ? hostStreak : partnerStreak;
+            partnerStreak = isHost ? partnerStreak : hostStreak;
+            
+            if (myCorrect) myCorrectAnswers++;
+            if ((isHost && partnerCorrect) || (!isHost && hostCorrect)) partnerCorrectAnswers++;
+            
+            showRoundResult(correctAnswer, myCorrect);
+        });
+
+        socket.on('gameOver', ({ winner, hostScore, partnerScore, hostCorrect, partnerCorrect }) => {
+            const won = (isHost && winner === 'host') || (!isHost && winner === 'partner');
+            
+            document.getElementById('gameOverEmoji').textContent = won ? '🎉' : '😢';
+            document.getElementById('winnerText').textContent = won ? 'You Won!' : `${partnerPlayerName} Won!`;
+            document.getElementById('finalMyName').textContent = myPlayerName;
+            document.getElementById('finalPartnerName').textContent = partnerPlayerName;
+            document.getElementById('finalMyScore').textContent = isHost ? hostScore : partnerScore;
+            document.getElementById('finalPartnerScore').textContent = isHost ? partnerScore : hostScore;
+            document.getElementById('finalMyCorrect').textContent = isHost ? hostCorrect : partnerCorrect;
+            document.getElementById('finalPartnerCorrect').textContent = isHost ? partnerCorrect : hostCorrect;
+            
+            if (isHost) {
+                document.getElementById('hostResetControls').style.display = 'block';
+            }
+            
+            if (won) {
+                confetti({
+                    particleCount: 100,
+                    spread: 70,
+                    origin: { y: 0.6 }
+                });
+            }
+            
+            showScreen('gameOverScreen');
+        });
+
+        socket.on('gameReset', () => {
+            myScore = 0;
+            partnerScore = 0;
+            myStreak = 0;
+            partnerStreak = 0;
+            myCorrectAnswers = 0;
+            partnerCorrectAnswers = 0;
+            showScreen('setupScreen');
+        });
+
+        socket.on('error', (message) => {
+            document.getElementById('joinError').textContent = message;
+            document.getElementById('joinError').style.display = 'block';
+        });
+
+        socket.on('hostLeft', () => {
+            alert('Host left the game!');
+            location.href = '../../index.html';
+        });
+
+        socket.on('partnerLeft', () => {
+            alert('Partner left the game!');
+            location.href = '../../index.html';
+        });
+
+        // Helper functions
+        function getCategoryName(categoryId) {
+            const categories = {
+                '9': 'General Knowledge 🌍',
+                '11': 'Film 🎬',
+                '12': 'Music 🎵',
+                '14': 'Television 📺',
+                '15': 'Video Games 🎮',
+                '17': 'Science & Nature 🔬',
+                '18': 'Computers 💻',
+                '21': 'Sports ⚾',
+                '22': 'Geography 🗺️',
+                '23': 'History 📜',
+                '27': 'Animals 🐾',
+                '31': 'Anime & Manga 🇯🇵'
+            };
+            return categories[categoryId] || 'General Knowledge';
+        }
+
+        function decodeHTML(html) {
+            const txt = document.createElement('textarea');
+            txt.innerHTML = html;
+            return txt.value;
+        }
+
+        function displayQuestion(question, roundNumber, totalRounds) {
+            document.getElementById('currentRound').textContent = `Round ${roundNumber}`;
+            document.getElementById('questionNumber').textContent = `Question ${roundNumber}/${totalRounds}`;
+            document.getElementById('questionText').textContent = decodeHTML(question.question);
+            
+            // Shuffle answers
+            const answers = [question.correct_answer, ...question.incorrect_answers]
+                .sort(() => Math.random() - 0.5);
+            
+            const optionsHtml = answers.map((answer, index) => `
+                <div class="answer-option" onclick="selectAnswer('${encodeURIComponent(answer)}', this)">
+                    <span class="answer-label">${String.fromCharCode(65 + index)}.</span>
+                    ${decodeHTML(answer)}
+                </div>
+            `).join('');
+            
+            document.getElementById('answerOptions').innerHTML = optionsHtml;
+            document.getElementById('waitingForPartner').style.display = 'none';
+            document.getElementById('timerContainer').style.display = 'block';
+            
+            // Update scores
+            document.getElementById('myScore').textContent = myScore;
+            document.getElementById('partnerScore').textContent = partnerScore;
+            document.getElementById('myStreak').textContent = myStreak > 0 ? `🔥 Streak: ${myStreak}` : '';
+            document.getElementById('partnerStreak').textContent = partnerStreak > 0 ? `🔥 Streak: ${partnerStreak}` : '';
+            
+            startTimer(20);
+        }
+
+        function selectAnswer(answer, element) {
+            if (myAnswer !== null) return; // Already answered
+            
+            myAnswer = decodeURIComponent(answer);
+            
+            // Visual feedback
+            document.querySelectorAll('.answer-option').forEach(opt => {
+                opt.classList.remove('selected');
+                opt.classList.add('disabled');
+            });
+            element.classList.add('selected');
+            
+            // Send answer to server
+            socket.emit('submitAnswer', { 
+                roomCode: currentRoomCode, 
+                answer: myAnswer 
+            });
+            
+            // Show waiting state
+            stopTimer();
+            document.getElementById('waitingForPartner').style.display = 'block';
+            document.getElementById('timerContainer').style.display = 'none';
+        }
+
+        function showRoundResult(correctAnswer, myCorrect) {
+            const options = document.querySelectorAll('.answer-option');
+            options.forEach(opt => {
+                const answerText = opt.textContent.trim().substring(2).trim();
+                if (decodeHTML(correctAnswer) === answerText) {
+                    opt.classList.add('correct');
+                } else if (opt.classList.contains('selected')) {
+                    opt.classList.add('incorrect');
+                }
+            });
+            
+            if (myCorrect) {
+                confetti({
+                    particleCount: 50,
+                    spread: 60,
+                    origin: { y: 0.7 }
+                });
+            }
+            
+            // Wait 3 seconds before next question
+            setTimeout(() => {
+                // Server will send next question
+            }, 3000);
+        }
+
+        function startTimer(seconds) {
+            let timeLeft = seconds;
+            const timerFill = document.getElementById('timerFill');
+            const timerText = document.getElementById('timerText');
+            
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                timerText.textContent = timeLeft;
+                timerFill.style.width = (timeLeft / seconds * 100) + '%';
+                
+                if (timeLeft <= 0) {
+                    stopTimer();
+                    if (myAnswer === null) {
+                        // Auto-submit no answer
+                        socket.emit('submitAnswer', { 
+                            roomCode: currentRoomCode, 
+                            answer: null 
+                        });
+                        document.getElementById('waitingForPartner').style.display = 'block';
+                        document.getElementById('timerContainer').style.display = 'none';
+                    }
+                }
+            }, 1000);
+        }
+
+        function stopTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+        }
+
+        // UI Functions
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+        }
+
+        function showHomeScreen() {
+            showScreen('homeScreen');
+            document.getElementById('joinError').style.display = 'none';
+        }
+
+        function showJoinScreen() {
+            showScreen('joinScreen');
+            document.getElementById('joinError').style.display = 'none';
+        }
+
+        function createRoom() {
+            const name = document.getElementById('playerName').value.trim();
+            if (!name) {
+                alert('Please enter your name!');
+                return;
+            }
+            socket.emit('createRoom', name);
+        }
+
+        function joinRoom() {
+            const name = document.getElementById('joinName').value.trim();
+            const code = document.getElementById('roomCode').value.trim().toUpperCase();
+            
+            if (!name || !code) {
+                document.getElementById('joinError').textContent = 'Please enter your name and room code!';
+                document.getElementById('joinError').style.display = 'block';
+                return;
+            }
+            
+            socket.emit('joinRoom', { roomCode: code, playerName: name });
+        }
+
+        function startGame() {
+    const category = document.getElementById('categorySelect').value;
+    const difficulty = document.getElementById('difficultySelect').value;
+    const rounds = document.getElementById('roundsSelect').value;
+    
+    // Show loading with progress
+    // Show loading spinner
+const loader = GameroModal.loading('Fetching questions from API...', 'Loading');
+
+// Simulate API call
+setTimeout(() => {
+    loader.close();
+    GameroModal.success('Questions loaded!', 'Ready', '✅');
+}, 2000);
+    
+    socket.emit('startTrivia', { 
+        roomCode: currentRoomCode, 
+        category: category,
+        difficulty: difficulty,
+        totalRounds: parseInt(rounds)
+    });
+}
+
+        function resetGame() {
+            socket.emit('resetGame', { roomCode: currentRoomCode });
+        }
+
+        function leaveGame() {
+            location.href = '../../index.html';
+        }
+
+        // Auto-focus inputs
+        const observer = new MutationObserver(() => {
+            const activeScreen = document.querySelector('.screen.active');
+            if (activeScreen) {
+                const firstInput = activeScreen.querySelector('input[type="text"]');
+                if (firstInput) setTimeout(() => firstInput.focus(), 100);
+            }
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+    </script>
+
+    <style>
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(10,14,39,.8);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);display:flex;justify-content:center;align-items:center;z-index:9999;opacity:0;visibility:hidden;transition:all .3s ease}.modal-overlay.active{opacity:1;visibility:visible}.modal-container{background:rgba(255,255,255,.15);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);border-radius:24px;border:1px solid rgba(255,255,255,.3);padding:40px;max-width:500px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.4);transform:scale(.9) translateY(20px);transition:all .3s cubic-bezier(.4,0,.2,1)}.modal-overlay.active .modal-container{transform:scale(1) translateY(0)}.modal-icon{font-size:4em;text-align:center;margin-bottom:20px;animation:iconPop .5s cubic-bezier(.4,0,.2,1)}@keyframes iconPop{0%{transform:scale(0)}50%{transform:scale(1.1)}100%{transform:scale(1)}}.modal-spinner{width:60px;height:60px;border:4px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 20px}@keyframes spin{to{transform:rotate(360deg)}}.loading-dots{display:flex;justify-content:center;gap:8px;margin:20px 0}.loading-dots span{width:12px;height:12px;background:#fff;border-radius:50%;animation:dotBounce 1.4s infinite ease-in-out both}.loading-dots span:nth-child(1){animation-delay:-.32s}.loading-dots span:nth-child(2){animation-delay:-.16s}@keyframes dotBounce{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}.progress-container{width:100%;height:8px;background:rgba(255,255,255,.2);border-radius:100px;overflow:hidden;margin:20px 0}.progress-bar{height:100%;background:linear-gradient(90deg,#48bb78 0%,#38a169 100%);border-radius:100px;transition:width .3s ease;position:relative;overflow:hidden}.progress-bar::after{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.3),transparent);animation:shimmer 2s infinite}@keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}.progress-text{text-align:center;color:#fff;font-size:1.1em;font-weight:600;margin-top:12px}.modal-title{font-size:2em;font-weight:800;color:#fff;text-align:center;margin-bottom:16px;text-shadow:0 2px 10px rgba(0,0,0,.3)}.modal-message{color:rgba(255,255,255,.9);text-align:center;font-size:1.1em;line-height:1.6;margin-bottom:32px}.modal-buttons{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}.modal-btn{padding:14px 32px;border:none;border-radius:12px;font-size:1em;font-weight:700;cursor:pointer;transition:all .3s ease;text-transform:uppercase;letter-spacing:1px;font-family:'Inter',sans-serif}.modal-btn-primary{background:linear-gradient(135deg,rgba(255,255,255,.95) 0%,rgba(255,255,255,.85) 100%);color:#667eea}.modal-btn-primary:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(255,255,255,.3)}.modal-btn-secondary{background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)}.modal-btn-secondary:hover{background:rgba(255,255,255,.3);transform:translateY(-2px)}.modal-btn-danger{background:linear-gradient(135deg,#f56565 0%,#e53e3e 100%);color:#fff}.modal-btn-danger:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(245,101,101,.4)}.modal-btn-success{background:linear-gradient(135deg,#48bb78 0%,#38a169 100%);color:#fff}.modal-btn-success:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(72,187,120,.4)}.modal-btn:active{transform:translateY(0)}.modal-input{width:100%;padding:16px;border:2px solid rgba(255,255,255,.3);border-radius:12px;background:rgba(255,255,255,.1);color:#fff;font-size:1.1em;margin-bottom:24px;text-align:center;font-family:'Inter',sans-serif}.modal-input::placeholder{color:rgba(255,255,255,.5)}.modal-input:focus{outline:none;border-color:rgba(255,255,255,.6);background:rgba(255,255,255,.15)}.modal-overlay.closing .modal-container{transform:scale(.9) translateY(20px);opacity:0}.modal-overlay.no-close{pointer-events:none}.modal-overlay.no-close .modal-container{pointer-events:all}
+</style>
+
+<div id="customModal" class="modal-overlay">
+    <div class="modal-container">
+        <div id="modalIconContainer">
+            <div class="modal-icon" id="modalIcon">ℹ️</div>
+        </div>
+        <div id="modalSpinnerContainer" style="display:none">
+            <div class="modal-spinner"></div>
+        </div>
+        <div id="modalDotsContainer" style="display:none">
+            <div class="loading-dots"><span></span><span></span><span></span></div>
+        </div>
+        <h2 class="modal-title" id="modalTitle">Alert</h2>
+        <p class="modal-message" id="modalMessage">This is a message</p>
+        <div id="modalProgressContainer" style="display:none">
+            <div class="progress-container">
+                <div class="progress-bar" id="modalProgressBar" style="width:0%"></div>
+            </div>
+            <div class="progress-text" id="modalProgressText">0%</div>
+        </div>
+        <div id="modalInputContainer" style="display:none">
+            <input type="text" class="modal-input" id="modalInput" placeholder="Enter value">
+        </div>
+        <div class="modal-buttons" id="modalButtons">
+            <button class="modal-btn modal-btn-primary">OK</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const GameroModal = {
+    overlay: null,
+    currentResolve: null,
+    progressInterval: null,
+    
+    init() {
+        this.overlay = document.getElementById('customModal');
+        this.overlay.addEventListener('click', (e) => {
+            if (e.target === this.overlay && !this.overlay.classList.contains('no-close')) {
+                this.close();
+            }
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.overlay.classList.contains('active') && !this.overlay.classList.contains('no-close')) {
+                this.close();
+            }
+        });
+    },
+    
+    show(canClose = true) {
+        this.overlay.classList.add('active');
+        this.overlay.classList.remove('closing');
+        if (!canClose) {
+            this.overlay.classList.add('no-close');
+        } else {
+            this.overlay.classList.remove('no-close');
+        }
+    },
+    
+    close() {
+        if (this.progressInterval) {
+            clearInterval(this.progressInterval);
+            this.progressInterval = null;
+        }
+        this.overlay.classList.add('closing');
+        setTimeout(() => {
+            this.overlay.classList.remove('active', 'closing', 'no-close');
+            this.resetModal();
+        }, 300);
+    },
+    
+    resetModal() {
+        document.getElementById('modalIconContainer').style.display = 'block';
+        document.getElementById('modalSpinnerContainer').style.display = 'none';
+        document.getElementById('modalDotsContainer').style.display = 'none';
+        document.getElementById('modalProgressContainer').style.display = 'none';
+        document.getElementById('modalInputContainer').style.display = 'none';
+    },
+    
+    alert(message, title = 'Alert', icon = '⚠️') {
+        return new Promise((resolve) => {
+            this.resetModal();
+            document.getElementById('modalIcon').textContent = icon;
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalMessage').textContent = message;
+            document.getElementById('modalButtons').innerHTML = '<button class="modal-btn modal-btn-primary" onclick="GameroModal.closeWithValue(true)">OK</button>';
+            this.currentResolve = resolve;
+            this.show();
+        });
+    },
+    
+    confirm(message, title = 'Confirm', icon = '❓') {
+        return new Promise((resolve) => {
+            this.resetModal();
+            document.getElementById('modalIcon').textContent = icon;
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalMessage').textContent = message;
+            document.getElementById('modalButtons').innerHTML = '<button class="modal-btn modal-btn-secondary" onclick="GameroModal.closeWithValue(false)">Cancel</button><button class="modal-btn modal-btn-success" onclick="GameroModal.closeWithValue(true)">Confirm</button>';
+            this.currentResolve = resolve;
+            this.show();
+        });
+    },
+    
+    success(message, title = 'Success!', icon = '✅') {
+        return this.alert(message, title, icon);
+    },
+    
+    error(message, title = 'Error', icon = '❌') {
+        return this.alert(message, title, icon);
+    },
+    
+    warning(message, title = 'Warning', icon = '⚠️') {
+        return this.alert(message, title, icon);
+    },
+    
+    info(message, title = 'Information', icon = 'ℹ️') {
+        return this.alert(message, title, icon);
+    },
+    
+    loading(message = 'Loading...', title = 'Please Wait') {
+        this.resetModal();
+        document.getElementById('modalIconContainer').style.display = 'none';
+        document.getElementById('modalSpinnerContainer').style.display = 'block';
+        document.getElementById('modalTitle').textContent = title;
+        document.getElementById('modalMessage').textContent = message;
+        document.getElementById('modalButtons').innerHTML = '';
+        this.show(false);
+        return {
+            close: () => this.close(),
+            updateMessage: (msg) => { document.getElementById('modalMessage').textContent = msg; }
+        };
+    },
+    
+    loadingDots(message = 'Loading', title = 'Please Wait') {
+        this.resetModal();
+        document.getElementById('modalIconContainer').style.display = 'none';
+        document.getElementById('modalDotsContainer').style.display = 'block';
+        document.getElementById('modalTitle').textContent = title;
+        document.getElementById('modalMessage').textContent = message;
+        document.getElementById('modalButtons').innerHTML = '';
+        this.show(false);
+        return {
+            close: () => this.close(),
+            updateMessage: (msg) => { document.getElementById('modalMessage').textContent = msg; }
+        };
+    },
+    
+    progress(message = 'Processing...', title = 'Progress') {
+        this.resetModal();
+        document.getElementById('modalIconContainer').style.display = 'none';
+        document.getElementById('modalProgressContainer').style.display = 'block';
+        document.getElementById('modalTitle').textContent = title;
+        document.getElementById('modalMessage').textContent = message;
+        document.getElementById('modalButtons').innerHTML = '';
+        this.show(false);
+        return {
+            close: () => this.close(),
+            setProgress: (percent) => {
+                document.getElementById('modalProgressBar').style.width = percent + '%';
+                document.getElementById('modalProgressText').textContent = Math.round(percent) + '%';
+            },
+            updateMessage: (msg) => { document.getElementById('modalMessage').textContent = msg; }
+        };
+    },
+    
+    autoProgress(message = 'Loading...', title = 'Please Wait', duration = 3000) {
+        const modal = this.progress(message, title);
+        let percent = 0;
+        const increment = 100 / (duration / 50);
+        this.progressInterval = setInterval(() => {
+            percent += increment;
+            if (percent >= 100) {
+                percent = 100;
+                modal.setProgress(100);
+                clearInterval(this.progressInterval);
+                setTimeout(() => modal.close(), 500);
+            } else {
+                modal.setProgress(percent);
+            }
+        }, 50);
+        return modal;
+    },
+    
+    closeWithValue(value) {
+        if (this.currentResolve) {
+            this.currentResolve(value);
+            this.currentResolve = null;
+        }
+        this.close();
+    }
+};
+ 
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', () => {
+    GameroModal.init();
+});
+</script>
+
+</body>
+</html>
