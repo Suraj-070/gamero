@@ -326,11 +326,17 @@ io.on('connection', (socket) => {
     // Check if both players have set their numbers
     if (room.host.secretNumber && room.partner && room.partner.secretNumber) {
       room.gameStarted = true;
-      room.currentTurn = room.host.name; // Host goes first
+      
+      // RANDOM first turn - flip a coin!
+      const firstTurn = Math.random() < 0.5 ? room.host.name : room.partner.name;
+      room.currentTurn = firstTurn;
+      
+      console.log('🎮 Starting game! Room:', roomCode, '| First turn:', firstTurn);
+      
       io.to(roomCode).emit('gameStarted', {
         hostName: room.host.name,
         partnerName: room.partner.name,
-        currentTurn: room.currentTurn
+        firstTurn: firstTurn
       });
     }
     
@@ -347,8 +353,7 @@ io.on('connection', (socket) => {
     const player = socket.id === room.host.id ? room.host : room.partner;
     const opponent = socket.id === room.host.id ? room.partner : room.host;
     
-    // Check if it's this player's turn (for Number Wordle)
-    if (room.currentTurn && room.currentTurn !== player.name) return;
+    console.log('🎯 submitGuess:', { player: player.name, guess, currentTurn: room.currentTurn });
     
     player.guesses.push(guess);
     
@@ -370,7 +375,7 @@ io.on('connection', (socket) => {
         partnerGuesses: room.partner ? room.partner.guesses.length : 0
       });
     } else {
-      // Send guess result to both players
+      // Send guess result to both players (for Number Wordle)
       io.to(roomCode).emit('guessResult', {
         playerName: player.name,
         guess: guess,
@@ -378,20 +383,73 @@ io.on('connection', (socket) => {
         isHost: socket.id === room.host.id
       });
       
-      // For Number Guessing, also send as newGuess
-      io.to(roomCode).emit('newGuess', {
-        playerName: player.name,
-        guess: guess,
-        guessCount: player.guesses.length,
-        isHost: socket.id === room.host.id
-      });
+      // Detect which game: Number Wordle uses 4-digit guesses with no duplicates
+      // Number Guessing can be any number
+      const isNumberWordle = guess.length === 4 && new Set(guess.split('')).size === 4;
       
-      // Switch turns (for Number Wordle)
-      if (room.currentTurn) {
-        room.currentTurn = opponent.name;
-        io.to(roomCode).emit('turnUpdate', { currentTurn: room.currentTurn });
+      if (isNumberWordle) {
+        // NUMBER WORDLE: Switch turn after guess
+        if (room.currentTurn) {
+          const oldTurn = room.currentTurn;
+          room.currentTurn = room.currentTurn === room.host.name ? room.partner.name : room.host.name;
+          console.log('   🔄 [Number Wordle] Turn switched from:', oldTurn, '→', room.currentTurn);
+          io.to(roomCode).emit('turnUpdate', {
+            currentTurn: room.currentTurn
+          });
+        }
+      } else {
+        // NUMBER GUESSING: Send newGuess for auto-hint system
+        console.log('   📢 [Number Guessing] Broadcasting newGuess to room');
+        io.to(roomCode).emit('newGuess', {
+          playerName: player.name,
+          guess: guess,
+          guessCount: player.guesses.length,
+          isHost: socket.id === room.host.id
+        });
+        // Turn switching happens in 'sendHint' handler for Number Guessing
       }
     }
+  });
+
+  // Send hint back to partner (for Number Guessing AUTO HINTS)
+  socket.on('sendHint', ({ roomCode, guess, hint, toPlayer }) => {
+    const room = rooms.get(roomCode);
+    if (!room) {
+      console.log('❌ sendHint: Room not found:', roomCode);
+      return;
+    }
+    
+    console.log('📨 sendHint received:', { roomCode, guess, hint, toPlayer, from: socket.id === room.host.id ? 'host' : 'partner' });
+    console.log('   Current turn BEFORE:', room.currentTurn);
+    
+    // GUARD: Only process hint if it's from the OPPONENT (not the guesser)
+    const guesser = room.host.name === toPlayer ? room.host : room.partner;
+    const hintSender = socket.id === room.host.id ? room.host : room.partner;
+    
+    if (guesser.id === hintSender.id) {
+      console.log('   ⚠️ IGNORED: Guesser cannot send hint to themselves!');
+      return;
+    }
+    
+    // Find the partner's socket ID
+    const partner = room.host.name === toPlayer ? room.host : room.partner;
+    
+    // Send hint only to the guesser
+    io.to(partner.id).emit('receiveHint', {
+      guess: guess,
+      hint: hint
+    });
+    console.log('   ✅ Sent hint to:', toPlayer);
+    
+    // Switch turns after hint is sent
+    const oldTurn = room.currentTurn;
+    room.currentTurn = room.currentTurn === room.host.name ? room.partner.name : room.host.name;
+    console.log('   🔄 Turn switched from:', oldTurn, '→', room.currentTurn);
+    
+    io.to(roomCode).emit('turnUpdate', {
+      currentTurn: room.currentTurn
+    });
+    console.log('   ✅ Broadcast turnUpdate to room');
   });
 
   // Declare winner (for Number Guessing - host only)
