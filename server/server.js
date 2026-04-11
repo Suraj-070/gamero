@@ -225,24 +225,24 @@ function endTriviaGame(roomCode) {
 
 // Calculate Wordle-style feedback for Number Wordle
 function calculateFeedback(guess, secret) {
-  const feedback = ['gray', 'gray', 'gray', 'gray'];
+  const len = secret.length;
+  const feedback = Array(len).fill('gray');
   const secretDigits = secret.split('');
   const guessDigits = guess.split('');
-  const used = [false, false, false, false];
-  
-  // First pass: mark correct positions (green)
-  for (let i = 0; i < 4; i++) {
+  const used = Array(len).fill(false);
+
+  // First pass: correct positions (green)
+  for (let i = 0; i < len; i++) {
     if (guessDigits[i] === secretDigits[i]) {
       feedback[i] = 'green';
       used[i] = true;
     }
   }
-  
-  // Second pass: mark wrong positions (yellow)
-  for (let i = 0; i < 4; i++) {
+
+  // Second pass: wrong positions (yellow)
+  for (let i = 0; i < len; i++) {
     if (feedback[i] === 'green') continue;
-    
-    for (let j = 0; j < 4; j++) {
+    for (let j = 0; j < len; j++) {
       if (!used[j] && guessDigits[i] === secretDigits[j] && i !== j) {
         feedback[i] = 'yellow';
         used[j] = true;
@@ -250,7 +250,7 @@ function calculateFeedback(guess, secret) {
       }
     }
   }
-  
+
   return feedback;
 }
 
@@ -272,7 +272,8 @@ io.on('connection', (socket) => {
       gameStarted: false,
       winner: null,
       currentTurn: null,
-      triviaData: null
+      triviaData: null,
+      wordleDifficulty: 'easy'  // easy|medium|hard
     };
     
     rooms.set(roomCode, room);
@@ -309,7 +310,53 @@ io.on('connection', (socket) => {
     socket.emit('roomJoined', { roomCode, playerName, isHost: false, hostName: room.host.name });
     io.to(room.host.id).emit('partnerJoined', { partnerName: playerName });
     
+    // If host already picked a difficulty, send it to the partner immediately
+    if (room.wordleDifficulty) {
+      socket.emit('difficultySet', { difficulty: room.wordleDifficulty });
+    }
+    
     console.log(`${playerName} joined room: ${roomCode}`);
+  });
+
+  // Set difficulty for Number Wordle (host only) — fires on every card click
+  socket.on('setDifficulty', ({ roomCode, difficulty }) => {
+    const room = rooms.get(roomCode);
+    if (!room) return;
+    // Accept from host — update host id if reconnected
+    if (socket.id !== room.host.id) {
+      const isPartner = room.partner && socket.id === room.partner.id;
+      if (isPartner) return;
+      room.host.id = socket.id;
+    }
+    room.wordleDifficulty = difficulty;
+    socket.to(roomCode).emit('difficultySet', { difficulty });
+    console.log('🎯 Difficulty selected for room:', roomCode, '->', difficulty);
+  });
+
+  // Host confirmed difficulty — show secret inputs to BOTH players simultaneously
+  socket.on('confirmDifficulty', ({ roomCode, difficulty }) => {
+    const room = rooms.get(roomCode);
+    if (!room) {
+      console.log('❌ confirmDifficulty: room not found:', roomCode);
+      return;
+    }
+    console.log('📨 confirmDifficulty received | socket:', socket.id, '| host:', room.host.id, '| match:', socket.id === room.host.id);
+    // Accept from host only — but update host.id if it changed due to reconnect
+    if (socket.id !== room.host.id) {
+      // Check if this socket is in the room at all
+      const isPartner = room.partner && socket.id === room.partner.id;
+      if (!isPartner) {
+        // Socket ID mismatch — likely a reconnect, update host id and proceed
+        console.log('⚠️  Host socket ID mismatch — updating host id from', room.host.id, 'to', socket.id);
+        room.host.id = socket.id;
+      } else {
+        console.log('❌ confirmDifficulty: called by partner, ignoring');
+        return;
+      }
+    }
+    room.wordleDifficulty = difficulty || room.wordleDifficulty || 'easy';
+    io.to(roomCode).emit('difficultyConfirmed', { difficulty: room.wordleDifficulty });
+    console.log('✅ Difficulty confirmed for room:', roomCode, '->', room.wordleDifficulty);
   });
 
   // Set secret number (for Number Guessing & Number Wordle)
@@ -336,13 +383,16 @@ io.on('connection', (socket) => {
       io.to(roomCode).emit('gameStarted', {
         hostName: room.host.name,
         partnerName: room.partner.name,
-        firstTurn: firstTurn
+        firstTurn: firstTurn,
+        difficulty: room.wordleDifficulty
       });
     }
     
-    // Notify the other player that this player is ready
-    const player = socket.id === room.host.id ? room.host : room.partner;
-    socket.to(roomCode).emit('playerReady', { playerName: player.name });
+    // Only send playerReady if game hasn't started yet (avoid noise alongside gameStarted)
+    if (!room.gameStarted) {
+      const player = socket.id === room.host.id ? room.host : room.partner;
+      socket.to(roomCode).emit('playerReady', { playerName: player.name });
+    }
   });
 
   // Submit guess (for Number Guessing & Number Wordle)
@@ -383,9 +433,8 @@ io.on('connection', (socket) => {
         isHost: socket.id === room.host.id
       });
       
-      // Detect which game: Number Wordle uses 4-digit guesses with no duplicates
-      // Number Guessing can be any number
-      const isNumberWordle = guess.length === 4 && new Set(guess.split('')).size === 4;
+      // Detect which game by digit count stored in room
+      const isNumberWordle = room.wordleDifficulty && guess.length >= 4 && guess.length <= 5;
       
       if (isNumberWordle) {
         // NUMBER WORDLE: Switch turn after guess
@@ -557,8 +606,30 @@ io.on('connection', (socket) => {
     room.winner = null;
     room.currentTurn = null;
     room.triviaData = null;
+    // Keep wordleDifficulty so host's choice persists across rounds
     
     io.to(roomCode).emit('gameReset');
+  });
+
+  // Typing indicator
+  socket.on('typing', ({ roomCode }) => {
+    const room = rooms.get(roomCode);
+    if (!room) return;
+    const player = socket.id === room.host.id ? room.host : room.partner;
+    if (player) socket.to(roomCode).emit('typing', { playerName: player.name });
+  });
+  socket.on('stopTyping', ({ roomCode }) => {
+    const room = rooms.get(roomCode);
+    if (!room) return;
+    const player = socket.id === room.host.id ? room.host : room.partner;
+    if (player) socket.to(roomCode).emit('stopTyping', { playerName: player.name });
+  });
+
+  // Taunts
+  socket.on('taunt', ({ roomCode, emoji }) => {
+    const room = rooms.get(roomCode);
+    if (!room) return;
+    socket.to(roomCode).emit('taunt', { emoji });
   });
 
   // Disconnect

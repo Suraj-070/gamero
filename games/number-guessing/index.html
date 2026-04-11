@@ -2,302 +2,188 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Number Guessing - GAMERO</title>
-    
-    <!-- External Libraries -->
     <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    
-    <!-- GAMERO Global Styles -->
     <link rel="stylesheet" href="../../css/global.css">
     <link rel="stylesheet" href="../../css/modal.css">
-    
-    <!-- Game Specific Styles -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container">
-        <!-- Setup Screen -->
-        <div id="setupScreen" class="screen active">
-            <a href="../../index.html" class="back-link">← Back to Games</a>
-            
-            <h1>🎯 Number Guessing</h1>
-            <p class="subtitle">Set your secret number and race to guess your opponent's!</p>
-            
-            <div class="input-group">
-                <label>Your Name:</label>
-                <input 
-                    type="text" 
-                    id="playerName" 
-                    placeholder="Enter your name"
-                    maxlength="20"
-                >
-            </div>
-            
-            <button onclick="createRoom()" class="primary-btn">
-                Create Game Room
-            </button>
-            
-            <div style="text-align: center; margin: 30px 0; color: #999;">
-                <strong>OR</strong>
-            </div>
-            
-            <div class="input-group">
-                <label>Join Existing Game:</label>
-                <input 
-                    type="text" 
-                    id="joinName" 
-                    placeholder="Your name"
-                    maxlength="20"
-                    style="margin-bottom: 10px;"
-                >
-                <input 
-                    type="text" 
-                    id="roomCode" 
-                    placeholder="Room Code (6 digits)"
-                    maxlength="6"
-                    style="text-transform: uppercase;"
-                >
-            </div>
-            
-            <button onclick="joinRoom()" class="secondary-btn">
-                Join Game
-            </button>
-        </div>
-        
-        <!-- Waiting Screen -->
-        <div id="waitingScreen" class="screen">
-            <a href="../../index.html" class="back-link">← Back to Games</a>
-            
-            <h1>🎯 Number Guessing</h1>
-            
-            <div class="waiting-container">
-                <div class="room-code-display">
-                    <div class="room-code-label">Room Code:</div>
-                    <div class="room-code-value" id="roomCodeValue">------</div>
-                    <p style="margin-top: 15px; font-size: 0.9em; opacity: 0.9;">
-                        Share this code with your friend!
-                    </p>
-                </div>
-                
-                <div id="waitingStatus">
-                    <span class="status-badge status-waiting">⏳ Waiting for partner...</span>
-                </div>
-                
-                <div id="setupArea" style="display: none;">
-                    <div class="setup-area">
-                        <h3 style="margin-bottom: 15px; text-align: center;">Set Your Secret Number</h3>
-                        <div class="input-group">
-                            <label>Your Secret Number:</label>
-                            <input 
-                                type="number" 
-                                id="secretNumber" 
-                                placeholder="Enter a number (any length)"
-                            >
-                        </div>
-                        <button onclick="setSecretNumber()" class="primary-btn">
-                            I'm Ready!
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Gameplay Screen - NEW IMPROVED UI -->
-        <div id="gameplayScreen" class="screen">
-            <a href="../../index.html" class="back-link">← Back to Games</a>
-            
-            <h1>🎯 Number Guessing</h1>
-            <div class="subtitle">Room: <strong id="displayRoomCode"></strong></div>
-            
-            <!-- Game Board: Side-by-Side Player Tables -->
-            <div class="game-board">
-                <!-- My Panel -->
-                <div class="player-panel me">
-                    <div class="player-header">
-                        <div class="player-info">
-                            <span class="player-name">
-                                <span id="myName">You</span>
-                                <span class="player-badge">YOU</span>
-                            </span>
-                            <div class="secret-number-display">
-                                My Secret: <span class="number" id="mySecretNumber">---</span>
-                            </div>
-                        </div>
-                        <span class="guess-count" id="myGuessCount">0 guesses</span>
-                    </div>
-                    
-                    <div class="current-hint waiting" id="myCurrentHint">
-                        Make your first guess!
-                    </div>
-                    
-                    <!-- Hint Tracker -->
-                    <div class="hint-tracker">
-                        <div class="hint-tracker-title">📊 Number Range Tracker</div>
-                        <div class="hint-range">
-                            <div class="hint-item low">
-                                <div class="hint-label">TOO LOW ↓</div>
-                                <div id="myTooLow">
-                                    <div class="hint-value none">---</div>
-                                </div>
-                            </div>
-                            <div class="hint-item high">
-                                <div class="hint-label">TOO HIGH ↑</div>
-                                <div id="myTooHigh">
-                                    <div class="hint-value none">---</div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="hint-range-summary" id="myRange">
-                            Make your first guess!
-                        </div>
-                    </div>
-                    
-                    <div class="guess-history" id="myGuesses">
-                        <div class="empty-state">
-                            <div class="empty-state-icon">🎯</div>
-                            <div class="empty-state-text">No guesses yet</div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Opponent Panel -->
-                <div class="player-panel opponent">
-                    <div class="player-header">
-                        <span class="player-name">
-                            <span id="partnerName">Opponent</span>
-                        </span>
-                        <span class="guess-count" id="partnerGuessCount">0 guesses</span>
-                    </div>
-                    
-                    <div class="current-hint waiting" id="partnerCurrentHint">
-                        Waiting for opponent...
-                    </div>
-                    
-                    <div class="guess-history" id="partnerGuesses">
-                        <div class="empty-state">
-                            <div class="empty-state-icon">⏳</div>
-                            <div class="empty-state-text">Waiting for opponent...</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Input Section -->
-            <div class="input-section">
-                <div class="input-group">
-                    <label>Enter Your Guess:</label>
-                    <div class="input-flex">
-                        <input 
-                            type="number" 
-                            id="guessInput" 
-                            placeholder="Enter a number..."
-                            onkeypress="if(event.key==='Enter') submitGuess()"
-                        >
-                        <button onclick="submitGuess()" class="primary-btn">
-                            Submit Guess
-                        </button>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Host Controls -->
-            <div id="hostControls" class="host-controls" style="display: none;">
-                <div class="host-controls-title">🎮 Host Controls</div>
-                <div class="button-group">
-                    <button onclick="declareWinner('host')" class="success-btn">
-                        🏆 I Won!
-                    </button>
-                    <button onclick="declareWinner('partner')" class="success-btn">
-                        🏆 Partner Won!
-                    </button>
-                </div>
-            </div>
-            
-            <button onclick="leaveGame()" class="danger-btn" style="margin-top: 20px; width: 100%;">
-                🚪 Leave Game
-            </button>
-        </div>
-        
-        <!-- Game Over Screen -->
-        <div id="gameOverScreen" class="screen">
-            <a href="../../index.html" class="back-link">← Back to Games</a>
-            
-            <div class="game-over">
-                <h2>🎉 Game Over!</h2>
-                <h3 id="winnerText" style="margin-bottom: 20px; color: #667eea;"></h3>
-                
-                <div class="revealed-numbers">
-                    <p>
-                        <strong id="hostNameReveal"></strong>'s Number: 
-                        <span id="revealedHostNumber" style="font-size: 1.5em; color: #667eea; font-weight: 800;"></span>
-                    </p>
-                    <p>
-                        <strong id="partnerNameReveal"></strong>'s Number: 
-                        <span id="revealedPartnerNumber" style="font-size: 1.5em; color: #764ba2; font-weight: 800;"></span>
-                    </p>
-                    <hr style="margin: 20px 0; opacity: 0.3;">
-                    <p>
-                        <strong id="hostNameGuesses"></strong> made 
-                        <span id="hostGuessCount" style="font-size: 1.3em; font-weight: 700;"></span> guesses
-                    </p>
-                    <p>
-                        <strong id="partnerNameGuesses"></strong> made 
-                        <span id="partnerGuessCount" style="font-size: 1.3em; font-weight: 700;"></span> guesses
-                    </p>
-                </div>
-            </div>
-            
-            <div id="hostResetControls" style="display: none; margin-bottom: 15px;">
-                <button onclick="resetGame()" class="primary-btn">
-                    🔄 Play Again
-                </button>
-            </div>
-            
-            <button onclick="leaveGame()" class="danger-btn" style="width: 100%;">
-                🚪 Leave Game
-            </button>
-        </div>
+<div class="container">
+
+  <!-- Setup Screen -->
+  <div id="setupScreen" class="screen active">
+    <a href="../../index.html" class="back-link">← Back to Games</a>
+    <h1>🎯 Number Guessing</h1>
+    <p class="subtitle">Set your secret number and race to guess your opponent's!</p>
+    <div class="input-group">
+      <label>Your Name:</label>
+      <input type="text" id="playerName" placeholder="Enter your name" maxlength="20" autocomplete="off" inputmode="text">
     </div>
-    
-    <!-- Modal HTML -->
-    <div id="customModal" class="modal-overlay">
-        <div class="modal-container">
-            <div id="modalIconContainer">
-                <div class="modal-icon" id="modalIcon">ℹ️</div>
-            </div>
-            <div id="modalSpinnerContainer" style="display:none;">
-                <div class="modal-spinner"></div>
-            </div>
-            <div id="modalDotsContainer" style="display:none;">
-                <div class="loading-dots">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                </div>
-            </div>
-            <h2 class="modal-title" id="modalTitle">Alert</h2>
-            <p class="modal-message" id="modalMessage">Message</p>
-            <div id="modalProgressContainer" style="display:none;">
-                <div class="progress-container">
-                    <div class="progress-bar" id="modalProgressBar" style="width:0%;"></div>
-                </div>
-                <div class="progress-text" id="modalProgressText">0%</div>
-            </div>
-            <div id="modalInputContainer" style="display:none;">
-                <input type="text" class="modal-input" id="modalInput" placeholder="Enter value">
-            </div>
-            <div class="modal-buttons" id="modalButtons">
-                <button class="modal-btn modal-btn-primary">OK</button>
-            </div>
-        </div>
+    <button onclick="createRoom()" class="primary-btn">🎮 Create Game Room</button>
+    <div style="text-align:center;margin:20px 0;color:#a0aec0;font-weight:600">— OR —</div>
+    <div class="input-group">
+      <label>Join Existing Game:</label>
+      <input type="text" id="joinName" placeholder="Your name" maxlength="20" style="margin-bottom:10px" autocomplete="off" inputmode="text">
+      <input type="text" id="roomCode" placeholder="Room Code (6 chars)" maxlength="6" style="text-transform:uppercase" autocomplete="off" inputmode="text">
     </div>
-    
-    <!-- GAMERO Global Scripts -->
-    <script src="../../js/modal.js"></script>
-    
-    <!-- Game Specific Script -->
-    <script src="script.js"></script>
+    <button onclick="joinRoom()" class="secondary-btn">🔗 Join Game</button>
+  </div>
+
+  <!-- Waiting Screen -->
+  <div id="waitingScreen" class="screen">
+    <a href="../../index.html" class="back-link">← Back to Games</a>
+    <h1>🎯 Number Guessing</h1>
+    <div class="waiting-container">
+      <div class="room-code-display">
+        <div class="room-code-label">Room Code</div>
+        <div class="room-code-value" id="roomCodeValue">------</div>
+        <p style="margin-top:10px;font-size:0.85em;opacity:0.9">Share this with your friend!</p>
+      </div>
+      <div id="waitingStatus">
+        <span class="status-badge status-waiting">⏳ Waiting for partner...</span>
+      </div>
+      <div id="setupArea" style="display:none">
+        <div class="setup-area">
+          <h3 style="margin-bottom:12px;text-align:center;color:#2d3748">Set Your Secret Number</h3>
+          <div class="input-group">
+            <label>Your Secret Number:</label>
+            <input type="number" id="secretNumber" placeholder="Enter any number" inputmode="numeric" pattern="[0-9]*">
+          </div>
+          <button onclick="setSecretNumber()" class="primary-btn">🔒 Lock It In!</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gameplay Screen -->
+  <div id="gameplayScreen" class="screen">
+    <a href="../../index.html" class="back-link">← Back to Games</a>
+    <h1>🎯 Number Guessing</h1>
+    <div class="subtitle">Room: <strong id="displayRoomCode"></strong></div>
+
+    <!-- Turn Banner -->
+    <div class="turn-banner their-turn" id="turnBanner">⏳ Waiting for opponent...</div>
+
+    <!-- Typing Indicator -->
+    <div class="typing-indicator" id="typingIndicator">
+      <span id="typingName">Opponent</span> is thinking
+      <div class="typing-dot"></div>
+      <div class="typing-dot"></div>
+      <div class="typing-dot"></div>
+    </div>
+
+    <!-- Game Board -->
+    <div class="game-board">
+      <!-- My Panel -->
+      <div class="player-panel me" id="myPanel">
+        <div class="player-header">
+          <div class="player-info">
+            <span class="player-name">
+              <span id="myName">You</span>
+              <span class="player-badge">YOU</span>
+            </span>
+            <div class="secret-number-display">Secret: <span class="number" id="mySecretNumber">---</span></div>
+          </div>
+          <span class="guess-count" id="myGuessCount">0 guesses</span>
+        </div>
+        <div class="current-hint waiting" id="myCurrentHint">Make your first guess!</div>
+        <div class="number-line-wrap" id="myNumberLine">
+          <div class="number-line-label">📊 Search Range</div>
+          <div class="number-line-track"><div class="number-line-range" id="myRangeBar"></div></div>
+          <div class="number-line-bounds">
+            <span class="bound-low" id="myBoundLow">?</span>
+            <span class="bound-range" id="myBoundRange">Narrowing in...</span>
+            <span class="bound-high" id="myBoundHigh">?</span>
+          </div>
+        </div>
+        <div class="guess-history" id="myGuesses">
+          <div class="empty-state"><div class="empty-state-icon">🎯</div><div class="empty-state-text">No guesses yet</div></div>
+        </div>
+      </div>
+
+      <!-- Opponent Panel -->
+      <div class="player-panel opponent" id="opponentPanel">
+        <div class="player-header">
+          <span class="player-name"><span id="partnerName">Opponent</span></span>
+          <span class="guess-count" id="partnerGuessCount">0 guesses</span>
+        </div>
+        <div class="current-hint waiting" id="partnerCurrentHint">Waiting for opponent...</div>
+        <div class="guess-history" id="partnerGuesses">
+          <div class="empty-state"><div class="empty-state-icon">⏳</div><div class="empty-state-text">Waiting...</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Input Section -->
+    <div class="input-section">
+      <div class="input-group" style="margin-bottom:0">
+        <label>Your Guess:</label>
+        <div class="input-flex">
+          <input type="number" id="guessInput" placeholder="Enter a number..." inputmode="numeric" pattern="[0-9]*">
+          <button onclick="submitGuess()" class="primary-btn" id="submitGuessBtn">Submit</button>
+        </div>
+      </div>
+      <!-- Taunt Bar -->
+      <div class="taunt-bar" id="tauntBar">
+        <button class="taunt-btn" onclick="sendTaunt('😈')" title="Evil">😈</button>
+        <button class="taunt-btn" onclick="sendTaunt('😤')" title="Frustrated">😤</button>
+        <button class="taunt-btn" onclick="sendTaunt('💀')" title="Skull">💀</button>
+        <button class="taunt-btn" onclick="sendTaunt('🫡')" title="Respect">🫡</button>
+        <button class="taunt-btn" onclick="sendTaunt('🔥')" title="Fire">🔥</button>
+      </div>
+    </div>
+
+    <button onclick="leaveGame()" class="danger-btn" style="margin-top:14px">🚪 Leave Game</button>
+  </div>
+
+  <!-- Game Over Screen -->
+  <div id="gameOverScreen" class="screen">
+    <a href="../../index.html" class="back-link">← Back to Games</a>
+    <div class="game-over">
+      <h2>🎉 Game Over!</h2>
+      <h3 id="winnerText" style="color:#667eea;margin-bottom:16px"></h3>
+      <div class="revealed-numbers">
+        <p><strong id="hostNameReveal"></strong>'s Number: <span id="revealedHostNumber" style="font-size:1.4em;color:#667eea;font-weight:800"></span></p>
+        <p><strong id="partnerNameReveal"></strong>'s Number: <span id="revealedPartnerNumber" style="font-size:1.4em;color:#764ba2;font-weight:800"></span></p>
+        <hr style="margin:16px 0;opacity:0.2">
+        <p><strong id="hostNameGuesses"></strong> — <span id="hostGuessCountResult" style="font-size:1.2em;font-weight:700"></span> guesses</p>
+        <p><strong id="partnerNameGuesses"></strong> — <span id="partnerGuessCountResult" style="font-size:1.2em;font-weight:700"></span> guesses</p>
+      </div>
+    </div>
+    <div id="hostResetControls" style="display:none;margin-bottom:12px">
+      <button onclick="resetGame()" class="secondary-btn">🔄 Play Again</button>
+    </div>
+    <button onclick="leaveGame()" class="danger-btn">🚪 Leave Game</button>
+  </div>
+
+</div>
+
+<!-- Taunt Toast -->
+<div class="taunt-toast" id="tauntToast"></div>
+
+<!-- Modal -->
+<div id="customModal" class="modal-overlay">
+  <div class="modal-container">
+    <div id="modalIconContainer"><div class="modal-icon" id="modalIcon">ℹ️</div></div>
+    <div id="modalSpinnerContainer" style="display:none"><div class="modal-spinner"></div></div>
+    <div id="modalDotsContainer" style="display:none"><div class="loading-dots"><span></span><span></span><span></span></div></div>
+    <h2 class="modal-title" id="modalTitle">Alert</h2>
+    <p class="modal-message" id="modalMessage">Message</p>
+    <div id="modalProgressContainer" style="display:none">
+      <div class="progress-container"><div class="progress-bar" id="modalProgressBar" style="width:0%"></div></div>
+      <div class="progress-text" id="modalProgressText">0%</div>
+    </div>
+    <div id="modalInputContainer" style="display:none">
+      <input type="text" class="modal-input" id="modalInput" placeholder="Enter value">
+    </div>
+    <div class="modal-buttons" id="modalButtons"><button class="modal-btn modal-btn-primary">OK</button></div>
+  </div>
+</div>
+
+<script src="../../js/modal.js"></script>
+<script src="script.js"></script>
 </body>
 </html>

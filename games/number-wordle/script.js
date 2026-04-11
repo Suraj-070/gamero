@@ -1,5 +1,4 @@
-// CHANGE THIS URL TO YOUR DEPLOYED SERVER
-const socket = io("https://gamero-server.onrender.com");
+const socket = io("http://localhost:3001");
 
 let myPlayerName = "";
 let partnerPlayerName = "";
@@ -7,155 +6,395 @@ let currentRoomCode = "";
 let isHost = false;
 let mySecretNumber = "";
 let isMyTurn = false;
+let currentDifficulty = "easy";
+let typingTimeout = null;
+let justGuessed = false;
+let lastTurnUpdate = null;
+let turnUpdateTimeout = null;
 
-// Socket event listeners
+// Digit knowledge trackers: 'green' | 'yellow' | 'gray' | null
+let myDigitState   = {}; // what I know about opponent's number
+let partnerDigitState = {}; // what partner knows about mine
+
+const DIFF_CONFIG = {
+  easy:   { digits: 4, repeats: false, label: "🟢 Easy — 4 digits, no repeats" },
+  medium: { digits: 5, repeats: false, label: "🟡 Medium — 5 digits, no repeats" },
+  hard:   { digits: 5, repeats: true,  label: "🔴 Hard — 5 digits, repeats allowed" }
+};
+
+// ─── SOUNDS ───────────────────────────────────────────────────────────────────
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+function getAudio() { if (!audioCtx) audioCtx = new AudioCtx(); return audioCtx; }
+function playTone(freq, type, duration, vol = 0.3) {
+  try {
+    const ctx = getAudio();
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(vol, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+    o.start(); o.stop(ctx.currentTime + duration);
+  } catch(e) {}
+}
+function soundCorrect() { playTone(523,'sine',0.15); setTimeout(()=>playTone(659,'sine',0.15),120); setTimeout(()=>playTone(784,'sine',0.3),240); }
+function soundWrong()   { playTone(220,'sawtooth',0.18,0.2); }
+function soundSubmit()  { playTone(440,'sine',0.1,0.15); }
+function soundTaunt()   { playTone(880,'sine',0.08,0.25); }
+function soundWin()     { [523,659,784,1047].forEach((f,i)=>setTimeout(()=>playTone(f,'sine',0.3),i*100)); }
+
+// ─── DIFFICULTY ───────────────────────────────────────────────────────────────
+function selectDifficulty(diff) {
+  currentDifficulty = diff;
+  document.querySelectorAll(".diff-card").forEach(c => c.classList.remove("selected"));
+  document.querySelector(`.diff-card[data-diff="${diff}"]`).classList.add("selected");
+  applyDifficultyToUI(diff);
+  if (currentRoomCode) {
+    socket.emit("setDifficulty", { roomCode: currentRoomCode, difficulty: diff });
+  }
+}
+
+function confirmDifficulty() {
+  if (!currentRoomCode) return;
+  socket.emit("setDifficulty",     { roomCode: currentRoomCode, difficulty: currentDifficulty });
+  socket.emit("confirmDifficulty", { roomCode: currentRoomCode, difficulty: currentDifficulty });
+}
+
+function buildDigitInputs(containerId, prefix, count) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = "";
+  for (let i = 1; i <= count; i++) {
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "digit-input";
+    input.id = `${prefix}${i}`;
+    input.maxLength = 1;
+    input.autocomplete = "off";
+    input.inputMode = "numeric";
+    input.pattern = "[0-9]*";
+    container.appendChild(input);
+  }
+  setupDigitInputs(prefix, count);
+}
+
+function buildPartnerSecretPlaceholder(count) {
+  const container = document.getElementById("partnerSecretDisplay");
+  if (!container) return;
+  container.innerHTML = "";
+  for (let i = 0; i < count; i++) {
+    const cube = document.createElement("div");
+    cube.className = "cube empty"; cube.textContent = "?";
+    container.appendChild(cube);
+  }
+}
+
+function buildDigitTracker(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = "";
+  for (let d = 0; d <= 9; d++) {
+    const key = document.createElement("div");
+    key.className = "digit-key";
+    key.id = `${containerId}-${d}`;
+    key.textContent = d;
+    container.appendChild(key);
+  }
+}
+
+function updateDigitTracker(containerId, digitState) {
+  for (let d = 0; d <= 9; d++) {
+    const el = document.getElementById(`${containerId}-${d}`);
+    if (!el) continue;
+    el.className = "digit-key" + (digitState[d] ? ` ${digitState[d]}` : "");
+  }
+}
+
+function applyDifficultyToUI(diff) {
+  const cfg = DIFF_CONFIG[diff];
+  const setupTitle = document.getElementById("setupTitle");
+  const setupHint  = document.getElementById("setupHint");
+  if (setupTitle) setupTitle.textContent = `🔒 Set Your ${cfg.digits}-Digit Secret Number`;
+  if (setupHint)  setupHint.textContent  = cfg.repeats
+    ? `Enter ${cfg.digits} digits — repeats allowed (0-9)`
+    : `Enter ${cfg.digits} different digits (0-9)`;
+  buildDigitInputs("secretInputs", "secret", cfg.digits);
+  buildDigitInputs("guessInputs",  "guess",  cfg.digits);
+  buildPartnerSecretPlaceholder(cfg.digits);
+  const badge = document.getElementById("gameDifficultyBadge");
+  if (badge) { const icons = {easy:"🟢 Easy",medium:"🟡 Medium",hard:"🔴 Hard"}; badge.textContent = icons[diff]||diff; }
+}
+
+// ─── TURN / UI ────────────────────────────────────────────────────────────────
+function updateTurnBanner() {
+  const banner = document.getElementById("turnBanner");
+  if (!banner) return;
+  if (isMyTurn) {
+    banner.className = "turn-banner my-turn";
+    banner.textContent = "✨ Your Turn — Make a guess!";
+  } else {
+    banner.className = "turn-banner their-turn";
+    banner.textContent = `⏳ ${partnerPlayerName}'s turn...`;
+  }
+}
+
+function updateTurnState(currentTurnPlayer) {
+  if (currentTurnPlayer) isMyTurn = currentTurnPlayer === myPlayerName;
+  const myIndicator      = document.getElementById("myTurnIndicator");
+  const partnerIndicator = document.getElementById("partnerTurnIndicator");
+  const inputSection     = document.getElementById("guessInputSection");
+  const myBoard          = document.getElementById("myBoard");
+  const partnerBoard     = document.getElementById("partnerBoard");
+  const submitBtn        = document.getElementById("guessBtn");
+
+  if (isMyTurn) {
+    myIndicator.textContent = "✅ Your Turn"; myIndicator.className = "turn-indicator";
+    partnerIndicator.textContent = "Waiting..."; partnerIndicator.className = "turn-indicator waiting";
+    inputSection.classList.remove("disabled");
+    myBoard.classList.add("active-turn"); partnerBoard.classList.remove("active-turn");
+    document.getElementById("inputSectionTitle").textContent = "Make Your Guess";
+    if (submitBtn) { submitBtn.disabled=false; submitBtn.style.opacity="1"; submitBtn.style.pointerEvents="auto"; }
+    setTimeout(() => { const f=document.getElementById("guess1"); if(f) f.focus(); }, 100);
+  } else {
+    myIndicator.textContent = "Waiting..."; myIndicator.className = "turn-indicator waiting";
+    partnerIndicator.textContent = "✅ Their Turn"; partnerIndicator.className = "turn-indicator";
+    inputSection.classList.add("disabled");
+    myBoard.classList.remove("active-turn"); partnerBoard.classList.add("active-turn");
+    document.getElementById("inputSectionTitle").textContent = "Wait for Your Turn";
+    if (submitBtn) { submitBtn.disabled=true; submitBtn.style.opacity="0.5"; submitBtn.style.pointerEvents="none"; }
+  }
+  updateTurnBanner();
+}
+
+// ─── TAUNTS ───────────────────────────────────────────────────────────────────
+function sendTaunt(emoji) {
+  soundTaunt();
+  socket.emit("taunt", { roomCode: currentRoomCode, emoji });
+  showTauntToast(emoji);
+}
+function showTauntToast(emoji) {
+  const toast = document.getElementById("tauntToast");
+  toast.textContent = emoji;
+  toast.classList.add("show");
+  setTimeout(() => toast.classList.remove("show"), 1200);
+}
+
+// ─── CUBE ANIMATIONS ─────────────────────────────────────────────────────────
+function animateCubeRow(row, feedback, guess) {
+  const cubes = row.querySelectorAll(".cube");
+  cubes.forEach((cube, i) => {
+    setTimeout(() => {
+      cube.classList.add("flip");
+      setTimeout(() => {
+        cube.textContent = guess[i];
+        cube.className = `cube ${feedback[i]} flip`;
+        setTimeout(() => cube.classList.remove("flip"), 300);
+      }, 250);
+    }, i * 120);
+  });
+}
+
+function shakeInputs() {
+  const inputs = document.querySelectorAll("#secretInputs .digit-input, #guessInputs .digit-input");
+  inputs.forEach(inp => {
+    inp.classList.remove("shake");
+    void inp.offsetWidth;
+    inp.classList.add("shake");
+    setTimeout(() => inp.classList.remove("shake"), 450);
+  });
+}
+
+// ─── SOCKET EVENTS ────────────────────────────────────────────────────────────
 socket.on("roomCreated", ({ roomCode, playerName, isHost: host }) => {
-  currentRoomCode = roomCode;
-  myPlayerName = playerName;
-  isHost = host;
+  currentRoomCode = roomCode; myPlayerName = playerName; isHost = host;
   document.getElementById("displayRoomCode").textContent = roomCode;
   showScreen("waitingScreen");
 });
 
 socket.on("partnerJoined", ({ partnerName }) => {
   partnerPlayerName = partnerName;
-  document.getElementById("waitingStatus").innerHTML =
-    `<span class="status-badge status-ready">✅ ${partnerName} joined!</span>`;
-  document.getElementById("setupArea").style.display = "block";
+  document.getElementById("waitingStatus").innerHTML = `<span class="status-badge status-ready">✅ ${partnerName} joined! Pick a difficulty below.</span>`;
+  if (isHost) {
+    document.getElementById("difficultyArea").style.display = "block";
+    document.getElementById("confirmDiffBtn").style.display = "block";
+    applyDifficultyToUI(currentDifficulty);
+  }
 });
 
 socket.on("roomJoined", ({ roomCode, playerName, isHost: host, hostName }) => {
-  currentRoomCode = roomCode;
-  myPlayerName = playerName;
-  isHost = host;
-  partnerPlayerName = hostName;
+  currentRoomCode = roomCode; myPlayerName = playerName; isHost = host; partnerPlayerName = hostName;
   document.getElementById("displayRoomCode").textContent = roomCode;
-  document.getElementById("waitingStatus").innerHTML =
-    `<span class="status-badge status-ready">✅ Connected!</span>`;
-  document.getElementById("setupArea").style.display = "block";
+  document.getElementById("waitingStatus").innerHTML = `<span class="status-badge status-ready">✅ Connected! Waiting for host to set difficulty...</span>`;
   showScreen("waitingScreen");
 });
 
-socket.on("playerReady", ({ playerName }) => {
-  document.getElementById("waitingStatus").innerHTML =
-    `<span class="status-badge status-ready">✅ ${playerName} is ready! Waiting for you...</span>`;
+socket.on("difficultySet", ({ difficulty }) => {
+  currentDifficulty = difficulty;
+  if (!isHost) {
+    const cfg = DIFF_CONFIG[difficulty];
+    document.getElementById("difficultyDisplay").style.display = "block";
+    document.getElementById("partnerDifficultyText").textContent = cfg.label;
+    applyDifficultyToUI(difficulty);
+    document.getElementById("waitingStatus").innerHTML = `<span class="status-badge status-ready">⏳ Host is choosing difficulty...</span>`;
+  }
 });
 
-socket.on("gameStarted", ({ hostName, partnerName, firstTurn }) => {
+socket.on("difficultyConfirmed", ({ difficulty }) => {
+  currentDifficulty = difficulty;
+  const cfg = DIFF_CONFIG[difficulty];
+  applyDifficultyToUI(difficulty);
+  document.getElementById("setupArea").style.display = "block";
+  if (isHost) {
+    document.getElementById("confirmDiffBtn").style.display = "none";
+    document.getElementById("waitingStatus").innerHTML = `<span class="status-badge status-ready">✅ ${cfg.label} confirmed — set your number!</span>`;
+  } else {
+    document.getElementById("difficultyDisplay").style.display = "block";
+    document.getElementById("partnerDifficultyText").textContent = cfg.label;
+    document.getElementById("waitingStatus").innerHTML = `<span class="status-badge status-ready">✅ ${cfg.label} — set your secret number!</span>`;
+  }
+});
+
+socket.on("playerReady", ({ playerName }) => {
+  const setupVisible = document.getElementById("setupArea").style.display !== "none";
+  if (!setupVisible) {
+    document.getElementById("waitingStatus").innerHTML = `<span class="status-badge status-ready">✅ ${playerName} is ready! Waiting for you...</span>`;
+  }
+});
+
+socket.on("gameStarted", ({ firstTurn, difficulty }) => {
+  currentDifficulty = difficulty;
+  applyDifficultyToUI(difficulty);
+  const cfg = DIFF_CONFIG[difficulty];
+
   document.getElementById("myName").textContent = myPlayerName;
   document.getElementById("partnerName").textContent = partnerPlayerName;
   document.getElementById("gameRoomCode").textContent = currentRoomCode;
+  document.getElementById("typingName").textContent = partnerPlayerName;
 
-  // Display my secret number
+  // Build digit trackers
+  myDigitState = {}; partnerDigitState = {};
+  buildDigitTracker("myDigitKeys");
+  buildDigitTracker("partnerDigitKeys");
+
+  // Show my secret number
   const mySecretDisplay = document.getElementById("mySecretDisplay");
   mySecretDisplay.innerHTML = "";
   for (let digit of mySecretNumber) {
     const cube = document.createElement("div");
-    cube.className = "cube green";
-    cube.textContent = digit;
+    cube.className = "cube green"; cube.textContent = digit;
     mySecretDisplay.appendChild(cube);
   }
 
-  if (isHost) {
-    document.getElementById("myHostBadge").style.display = "inline-block";
-  }
-
+  if (isHost) document.getElementById("myHostBadge").style.display = "inline-block";
   updateTurnState(firstTurn);
   showScreen("gameScreen");
-  
-  console.log('🎮 Game started! First turn:', firstTurn, '| My name:', myPlayerName);
 });
-
-// Turn update with guards
-let lastTurnUpdate = null;
-let turnUpdateTimeout = null;
-let justGuessed = false;
 
 socket.on("turnUpdate", ({ currentTurn }) => {
-  console.log('🔄 Turn update received:', currentTurn, '| My name:', myPlayerName, '| Just guessed?', justGuessed);
-  
-  // GUARD: If I just guessed and turn comes back to me, IGNORE IT
-  if (justGuessed && currentTurn === myPlayerName) {
-    console.log('   ⚠️ IGNORED: I just guessed, turn cannot come back to me!');
-    return;
-  }
-  
-  // DEBOUNCE: Ignore duplicate turn updates within 200ms
-  if (lastTurnUpdate === currentTurn && turnUpdateTimeout) {
-    console.log('   ⏭️ IGNORED: Duplicate turn update');
-    return;
-  }
-  
-  // Clear previous timeout
-  if (turnUpdateTimeout) {
-    clearTimeout(turnUpdateTimeout);
-  }
-  
+  if (justGuessed && currentTurn === myPlayerName) return;
+  if (lastTurnUpdate === currentTurn && turnUpdateTimeout) return;
+  if (turnUpdateTimeout) clearTimeout(turnUpdateTimeout);
   lastTurnUpdate = currentTurn;
   updateTurnState(currentTurn);
-  
-  // Reset justGuessed flag after turn changes
   justGuessed = false;
-  
-  // Reset debounce after 200ms
-  turnUpdateTimeout = setTimeout(() => {
-    lastTurnUpdate = null;
-    turnUpdateTimeout = null;
-  }, 200);
+  turnUpdateTimeout = setTimeout(() => { lastTurnUpdate = null; turnUpdateTimeout = null; }, 200);
 });
 
-socket.on("guessResult", ({ playerName, guess, feedback, isHost: guessIsHost }) => {
+socket.on("guessResult", ({ playerName, guess, feedback }) => {
   const isMine = playerName === myPlayerName;
-  
-  // SWAP: My guesses appear on opponent's panel (where their secret is)
-  // Their guesses appear on my panel (where my secret is)
-  const container = isMine
-    ? document.getElementById("partnerGuesses")
-    : document.getElementById("myGuesses");
+  // My guesses → partner's board; their guesses → my board
+  const container = isMine ? document.getElementById("partnerGuesses") : document.getElementById("myGuesses");
+  const digitStateToUpdate = isMine ? myDigitState : partnerDigitState;
+  const trackerContainerId  = isMine ? "myDigitKeys" : "partnerDigitKeys";
 
   const guessRow = document.createElement("div");
-  guessRow.className = "cube-row";
-
-  for (let i = 0; i < 4; i++) {
+  guessRow.className = "cube-row slide-up";
+  for (let i = 0; i < guess.length; i++) {
     const cube = document.createElement("div");
-    cube.className = `cube ${feedback[i]}`;
-    cube.textContent = guess[i];
-    cube.style.animationDelay = `${i * 0.1}s`;
+    cube.className = "cube";
     guessRow.appendChild(cube);
   }
-
   container.insertBefore(guessRow, container.firstChild);
+
+  // Animate flip reveal
+  setTimeout(() => {
+    const cubes = guessRow.querySelectorAll(".cube");
+    cubes.forEach((cube, i) => {
+      setTimeout(() => {
+        cube.classList.add("flip");
+        setTimeout(() => {
+          cube.textContent = guess[i];
+          cube.className = `cube ${feedback[i]}`;
+        }, 250);
+      }, i * 120);
+    });
+  }, 50);
+
+  // Update digit tracker — green > yellow > gray priority
+  for (let i = 0; i < guess.length; i++) {
+    const d = parseInt(guess[i]);
+    const prev = digitStateToUpdate[d];
+    const next = feedback[i];
+    if (!prev || (prev === 'gray' && next !== 'gray') || (prev === 'yellow' && next === 'green')) {
+      digitStateToUpdate[d] = next;
+    }
+  }
+  setTimeout(() => updateDigitTracker(trackerContainerId, digitStateToUpdate), guess.length * 120 + 300);
+
+  // Sound
+  if (feedback.every(f => f === 'green')) soundCorrect(); else soundWrong();
 });
 
-socket.on("gameOver", ({ winner, hostName, partnerName, hostNumber, partnerNumber, hostGuesses, partnerGuesses }) => {
-  const winnerName = winner;
-  const winnerGuessCount = winner === hostName ? hostGuesses : partnerGuesses;
+socket.on("typing", ({ playerName }) => {
+  if (playerName !== myPlayerName) document.getElementById("typingIndicator").classList.add("visible");
+});
+socket.on("stopTyping", ({ playerName }) => {
+  if (playerName !== myPlayerName) document.getElementById("typingIndicator").classList.remove("visible");
+});
+socket.on("taunt", ({ emoji }) => { soundTaunt(); showTauntToast(emoji); });
 
+socket.on("gameOver", ({ winner, hostName, partnerName, hostNumber, partnerNumber, hostGuesses, partnerGuesses }) => {
+  const winnerGuessCount = winner === hostName ? hostGuesses : partnerGuesses;
   document.getElementById("winnerEmoji").textContent = winner === myPlayerName ? "🎉" : "😢";
   document.getElementById("winnerText").textContent = `${winner} Won!`;
-  document.getElementById("winnerNameStats").textContent = winnerName;
+  document.getElementById("winnerNameStats").textContent = winner;
   document.getElementById("winnerGuesses").textContent = winnerGuessCount;
-
-  // Display revealed numbers
-  displayRevealedNumber("hostNameReveal", "hostNumberReveal", hostName, hostNumber);
+  displayRevealedNumber("hostNameReveal",    "hostNumberReveal",    hostName,    hostNumber);
   displayRevealedNumber("partnerNameReveal", "partnerNumberReveal", partnerName, partnerNumber);
-
-  if (isHost) {
-    document.getElementById("hostResetControls").style.display = "block";
-  }
-
+  if (isHost) document.getElementById("hostResetControls").style.display = "block";
   showScreen("gameOverScreen");
+  if (winner === myPlayerName) {
+    soundWin();
+    if (typeof confetti !== 'undefined') confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
+  } else soundWrong();
 });
 
 socket.on("gameReset", () => {
-  mySecretNumber = "";
+  mySecretNumber = ""; isMyTurn = false; justGuessed = false;
+  lastTurnUpdate = null;
+  if (turnUpdateTimeout) { clearTimeout(turnUpdateTimeout); turnUpdateTimeout = null; }
+  myDigitState = {}; partnerDigitState = {};
+
   document.getElementById("myGuesses").innerHTML = "";
   document.getElementById("partnerGuesses").innerHTML = "";
-  clearSecretInputs();
-  clearGuessInputs();
-  document.getElementById("setupArea").style.display = "block";
-  document.getElementById("waitingStatus").innerHTML =
-    `<span class="status-badge status-ready">✅ Both players ready!</span>`;
+  document.getElementById("mySecretDisplay").innerHTML = "";
+  document.getElementById("hostResetControls").style.display = "none";
+
+  const lockBtn = document.getElementById("lockBtn");
+  if (lockBtn) { lockBtn.disabled=false; lockBtn.style.opacity="1"; lockBtn.style.pointerEvents="auto"; }
+
+  if (isHost) {
+    document.getElementById("difficultyArea").style.display = "block";
+    document.getElementById("confirmDiffBtn").style.display = "block";
+    document.getElementById("setupArea").style.display = "none";
+    document.getElementById("difficultyDisplay").style.display = "none";
+  } else {
+    document.getElementById("setupArea").style.display = "none";
+    document.getElementById("difficultyDisplay").style.display = "none";
+    document.getElementById("difficultyArea").style.display = "none";
+  }
+  clearSecretInputs(); clearGuessInputs();
+  document.getElementById("waitingStatus").innerHTML = `<span class="status-badge status-ready">✅ Ready to play again!</span>`;
   showScreen("waitingScreen");
 });
 
@@ -163,240 +402,137 @@ socket.on("error", (message) => {
   document.getElementById("joinError").textContent = message;
   document.getElementById("joinError").style.display = "block";
 });
+socket.on("hostLeft",    () => { alert("Host left the game!");    location.href = "../../index.html"; });
+socket.on("partnerLeft", () => { alert("Partner left the game!"); location.href = "../../index.html"; });
 
-socket.on("hostLeft", () => {
-  alert("Host left the game!");
-  location.href = "../../index.html";
-});
-
-socket.on("partnerLeft", () => {
-  alert("Partner left the game!");
-  location.href = "../../index.html";
-});
-
-// Helper Functions
+// ─── HELPER FUNCTIONS ─────────────────────────────────────────────────────────
 function displayRevealedNumber(nameId, numberId, name, number) {
   document.getElementById(nameId).textContent = name;
   const container = document.getElementById(numberId);
   container.innerHTML = "";
   for (let digit of number) {
     const cube = document.createElement("div");
-    cube.className = "cube green";
-    cube.textContent = digit;
+    cube.className = "cube green"; cube.textContent = digit;
     container.appendChild(cube);
   }
 }
 
-function updateTurnState(currentTurnPlayer) {
-  if (currentTurnPlayer) {
-    isMyTurn = currentTurnPlayer === myPlayerName;
-  }
-  
-  console.log('🔧 updateTurnState | currentTurnPlayer:', currentTurnPlayer, '| isMyTurn:', isMyTurn);
-
-  const myIndicator = document.getElementById("myTurnIndicator");
-  const partnerIndicator = document.getElementById("partnerTurnIndicator");
-  const inputSection = document.getElementById("guessInputSection");
-  const myBoard = document.getElementById("myBoard");
-  const partnerBoard = document.getElementById("partnerBoard");
-  const submitBtn = document.querySelector('.submit-btn');
-
-  if (isMyTurn) {
-    console.log('   ✅ Enabling MY turn');
-    myIndicator.textContent = "✅ Your Turn";
-    myIndicator.className = "turn-indicator";
-    partnerIndicator.textContent = "Waiting...";
-    partnerIndicator.className = "turn-indicator waiting";
-    inputSection.classList.remove("disabled");
-    myBoard.classList.add("active-turn");
-    partnerBoard.classList.remove("active-turn");
-    document.getElementById("inputSectionTitle").textContent = "Make Your Guess";
-    
-    if (submitBtn) {
-      submitBtn.disabled = false;
-      submitBtn.style.opacity = '1';
-      submitBtn.style.pointerEvents = 'auto';
-    }
-    
-    setTimeout(() => {
-      const firstInput = document.getElementById('guess1');
-      if (firstInput) firstInput.focus();
-    }, 100);
-  } else {
-    console.log('   ❌ Disabling MY turn');
-    myIndicator.textContent = "Waiting...";
-    myIndicator.className = "turn-indicator waiting";
-    partnerIndicator.textContent = "✅ Their Turn";
-    partnerIndicator.className = "turn-indicator";
-    inputSection.classList.add("disabled");
-    myBoard.classList.remove("active-turn");
-    partnerBoard.classList.add("active-turn");
-    document.getElementById("inputSectionTitle").textContent = "Wait for Your Turn";
-    
-    if (submitBtn) {
-      submitBtn.disabled = true;
-      submitBtn.style.opacity = '0.5';
-      submitBtn.style.pointerEvents = 'none';
-    }
-  }
-}
-
 function clearSecretInputs() {
-  for (let i = 1; i <= 4; i++) {
-    document.getElementById(`secret${i}`).value = "";
-  }
+  const cfg = DIFF_CONFIG[currentDifficulty];
+  for (let i = 1; i <= cfg.digits; i++) { const el=document.getElementById(`secret${i}`); if(el) el.value=""; }
 }
-
 function clearGuessInputs() {
-  for (let i = 1; i <= 4; i++) {
-    document.getElementById(`guess${i}`).value = "";
-  }
+  const cfg = DIFF_CONFIG[currentDifficulty];
+  for (let i = 1; i <= cfg.digits; i++) { const el=document.getElementById(`guess${i}`); if(el) el.value=""; }
 }
 
-// UI Functions
-function showScreen(screenId) {
-  document.querySelectorAll(".screen").forEach((s) => s.classList.remove("active"));
-  document.getElementById(screenId).classList.add("active");
+// ─── UI FUNCTIONS ─────────────────────────────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
 }
-
-function showHomeScreen() {
-  showScreen("homeScreen");
-  document.getElementById("joinError").style.display = "none";
-}
-
-function showJoinScreen() {
-  showScreen("joinScreen");
-  document.getElementById("joinError").style.display = "none";
-}
+function showHomeScreen() { showScreen("homeScreen"); document.getElementById("joinError").style.display="none"; }
+function showJoinScreen()  { showScreen("joinScreen");  document.getElementById("joinError").style.display="none"; }
 
 function createRoom() {
   const name = document.getElementById("playerName").value.trim();
-  if (!name) {
-    alert("Please enter your name!");
-    return;
-  }
+  if (!name) { alert("Please enter your name!"); return; }
   socket.emit("createRoom", name);
 }
-
 function joinRoom() {
   const name = document.getElementById("joinName").value.trim();
   const code = document.getElementById("roomCode").value.trim().toUpperCase();
-
   if (!name || !code) {
     document.getElementById("joinError").textContent = "Please enter your name and room code!";
     document.getElementById("joinError").style.display = "block";
     return;
   }
-
   socket.emit("joinRoom", { roomCode: code, playerName: name });
 }
 
 async function setSecretNumber() {
+  const cfg = DIFF_CONFIG[currentDifficulty];
   const digits = [];
-  for (let i = 1; i <= 4; i++) {
-    const val = document.getElementById(`secret${i}`).value;
+  for (let i = 1; i <= cfg.digits; i++) {
+    const val = document.getElementById(`secret${i}`)?.value;
     if (!val || !/^\d$/.test(val)) {
-      await GameroModal.warning('Please enter 4 digits (0-9)!', 'Invalid Input', '🔢');
+      shakeInputs();
+      await GameroModal.warning(`Please enter ${cfg.digits} digits (0-9)!`, "Invalid Input", "🔢");
       return;
     }
     digits.push(val);
   }
-
-  if (new Set(digits).size !== 4) {
-    await GameroModal.warning('All digits must be different!', 'Invalid Number', '❌');
+  if (!cfg.repeats && new Set(digits).size !== cfg.digits) {
+    shakeInputs();
+    await GameroModal.warning("All digits must be different!", "Invalid Number", "❌");
     return;
   }
-
   mySecretNumber = digits.join("");
-  socket.emit("setSecretNumber", {
-    roomCode: currentRoomCode,
-    secretNumber: mySecretNumber,
-  });
+  socket.emit("setSecretNumber", { roomCode: currentRoomCode, secretNumber: mySecretNumber });
   document.getElementById("setupArea").style.display = "none";
-  document.getElementById("waitingStatus").innerHTML =
-    `<span class="status-badge status-ready">✅ Waiting for partner...</span>`;
+  document.getElementById("difficultyArea").style.display = "none";
+  document.getElementById("waitingStatus").innerHTML = `<span class="status-badge status-ready">✅ Waiting for partner...</span>`;
 }
 
 async function submitGuess() {
-  console.log('📤 submitGuess called | isMyTurn:', isMyTurn);
-  
-  if (!isMyTurn) {
-    await GameroModal.info('Wait for your turn!', 'Not Your Turn', '⏸️');
-    return;
-  }
-
+  if (!isMyTurn) { await GameroModal.info("Wait for your turn!", "Not Your Turn", "⏸️"); return; }
+  const cfg = DIFF_CONFIG[currentDifficulty];
   const digits = [];
-  for (let i = 1; i <= 4; i++) {
-    const val = document.getElementById(`guess${i}`).value;
+  for (let i = 1; i <= cfg.digits; i++) {
+    const val = document.getElementById(`guess${i}`)?.value;
     if (!val || !/^\d$/.test(val)) {
-      await GameroModal.warning('Please enter 4 digits (0-9)!', 'Invalid Input', '🔢');
+      shakeInputs();
+      await GameroModal.warning(`Please enter ${cfg.digits} digits (0-9)!`, "Invalid Input", "🔢");
       return;
     }
     digits.push(val);
   }
-
   const guess = digits.join("");
-  console.log('📤 Submitting guess:', guess);
-  
-  justGuessed = true;
-  isMyTurn = false;
+  soundSubmit();
+  justGuessed = true; isMyTurn = false;
   updateTurnState(null);
-  
-  socket.emit("submitGuess", { roomCode: currentRoomCode, guess: guess });
+  socket.emit("submitGuess", { roomCode: currentRoomCode, guess });
+  socket.emit("stopTyping", { roomCode: currentRoomCode });
   clearGuessInputs();
 }
 
-function resetGame() {
-  socket.emit("resetGame", { roomCode: currentRoomCode });
-}
+function resetGame() { socket.emit("resetGame", { roomCode: currentRoomCode }); }
+function leaveGame()  { location.href = "../../index.html"; }
 
-function leaveGame() {
-  location.href = "../../index.html";
-}
-
-// Auto-focus and input navigation
-function setupDigitInputs(prefix) {
-  for (let i = 1; i <= 4; i++) {
+// ─── INPUT NAVIGATION ─────────────────────────────────────────────────────────
+function setupDigitInputs(prefix, count) {
+  for (let i = 1; i <= count; i++) {
     const input = document.getElementById(`${prefix}${i}`);
-
-    input.addEventListener("input", function (e) {
-      if (this.value.length === 1 && i < 4) {
-        document.getElementById(`${prefix}${i + 1}`).focus();
+    if (!input) continue;
+    input.addEventListener("input", function() {
+      this.value = this.value.replace(/[^0-9]/g, '');
+      if (this.value.length === 1 && i < count) document.getElementById(`${prefix}${i+1}`)?.focus();
+      // Typing indicator for guess inputs
+      if (prefix === "guess" && isMyTurn) {
+        socket.emit("typing", { roomCode: currentRoomCode });
+        clearTimeout(typingTimeout);
+        typingTimeout = setTimeout(() => socket.emit("stopTyping", { roomCode: currentRoomCode }), 1500);
       }
     });
-
-    input.addEventListener("keydown", function (e) {
-      if (e.key === "Backspace" && this.value === "" && i > 1) {
-        document.getElementById(`${prefix}${i - 1}`).focus();
-      }
-      if (e.key === "Enter" && i === 4) {
-        if (prefix === "secret") {
-          setSecretNumber();
-        } else if (prefix === "guess") {
-          submitGuess();
-        }
+    input.addEventListener("keydown", function(e) {
+      if (e.key === "Backspace" && this.value === "" && i > 1) document.getElementById(`${prefix}${i-1}`)?.focus();
+      if (e.key === "Enter" && i === count) {
+        if (prefix === "secret") setSecretNumber();
+        else if (prefix === "guess") submitGuess();
       }
     });
-
-    input.addEventListener("keypress", function (e) {
-      if (!/[0-9]/.test(e.key)) {
-        e.preventDefault();
-      }
-    });
+    input.addEventListener("keypress", function(e) { if (!/[0-9]/.test(e.key)) e.preventDefault(); });
   }
 }
 
-setupDigitInputs("secret");
-setupDigitInputs("guess");
-
-// Auto-focus first input on screen change
-const observer = new MutationObserver(() => {
+// Auto-focus first input when screen changes
+const screenObserver = new MutationObserver(() => {
   const activeScreen = document.querySelector(".screen.active");
   if (activeScreen) {
     const firstInput = activeScreen.querySelector('input[type="text"]');
     if (firstInput) setTimeout(() => firstInput.focus(), 100);
   }
 });
-observer.observe(document.body, { childList: true, subtree: true });
+screenObserver.observe(document.body, { childList: true, subtree: true });
 
-console.log('🎮 Number Wordle loaded!');
+console.log("🎮 Number Wordle loaded — mobile-first polished!");
