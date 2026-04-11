@@ -1,4 +1,4 @@
-const socket = io("http://localhost:3001");
+const socket = io("https://gamero-server.onrender.com");
 
 let myPlayerName = "";
 let partnerPlayerName = "";
