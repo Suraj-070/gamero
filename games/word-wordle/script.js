@@ -354,7 +354,10 @@ socket.on('wordWordleResult', async ({ guess, feedback, guessNumber, solved }) =
   highlightActiveRow('myGrid', myGuessCount);
 
   if (solved) {
-    document.getElementById('guessHint').textContent = '🎉 Correct!';
+    // Lock input immediately — server will send youSolved or wordWordleOver next
+    gameOver = true;
+    document.getElementById('guessInputSection').classList.add('disabled');
+    document.getElementById('guessHint').textContent = '🎉 Correct! Waiting...';
     soundCorrect();
   } else if (guessNumber >= MAX_GUESSES) {
     document.getElementById('guessHint').textContent = '😢 Out of guesses!';
