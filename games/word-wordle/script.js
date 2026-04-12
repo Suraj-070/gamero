@@ -13,6 +13,11 @@ let gameOver = false;
 let typingTimeout = null;
 let myKeyboardState = {};
 
+// Store all guesses for board reveal + share
+let myGuessList = [];      // [{guess, feedback}]
+let theirGuessList = [];   // [{feedback}] — no letters
+let lastGameResult = null; // stored for share button
+
 const KEYBOARD_ROWS = [
   ['Q','W','E','R','T','Y','U','I','O','P'],
   ['A','S','D','F','G','H','J','K','L'],
@@ -141,6 +146,7 @@ function updateKeyboard(letters, feedback) {
 }
 
 // ─── LIVE TYPING PREVIEW ─────────────────────────────────────────────────────
+let lastPreviewLength = 0;
 function updateLivePreview(value) {
   if (gameOver) return;
   removeActiveRow("myGrid", myGuessCount);
@@ -148,14 +154,22 @@ function updateLivePreview(value) {
     const cube = document.getElementById(`myGrid-${myGuessCount}-${c}`);
     if (!cube) continue;
     if (c < value.length) {
+      const isNew = c >= lastPreviewLength;
       cube.textContent = value[c].toUpperCase();
-      cube.classList.add('filled', 'active-row');
+      if (isNew) {
+        cube.classList.remove('filled');
+        void cube.offsetWidth; // force reflow for animation restart
+        cube.classList.add('filled', 'active-row');
+      } else {
+        cube.classList.add('filled', 'active-row');
+      }
     } else {
       cube.textContent = "";
       cube.classList.remove('filled');
       cube.classList.add('active-row');
     }
   }
+  lastPreviewLength = value.length;
 }
 
 // ─── INPUT HANDLERS ───────────────────────────────────────────────────────────
@@ -238,6 +252,7 @@ async function submitGuess() {
   soundSubmit();
   socket.emit('wordWordleGuess', { roomCode: currentRoomCode, guess: word });
   input.value = '';
+  lastPreviewLength = 0;
   updateLivePreview('');
   document.getElementById('guessHint').textContent = 'Guess submitted...';
   // Disable input while waiting for server response
@@ -293,6 +308,8 @@ socket.on('wordWordleStarted', () => {
   // Reset state
   myGuessCount = 0; theirGuessCount = 0;
   gameOver = false; myKeyboardState = {};
+  myGuessList = []; theirGuessList = []; lastGameResult = null;
+  lastPreviewLength = 0;
 
   document.getElementById('myName').textContent = myPlayerName;
   document.getElementById('partnerName').textContent = partnerPlayerName;
@@ -340,6 +357,7 @@ socket.on('invalidWord', () => {
 });
 
 socket.on('wordWordleResult', async ({ guess, feedback, guessNumber, solved }) => {
+  myGuessList.push({ guess, feedback });
   // Re-enable input
   const input = document.getElementById('wordInput');
   input.disabled = false;
@@ -373,6 +391,7 @@ socket.on('wordWordleResult', async ({ guess, feedback, guessNumber, solved }) =
 });
 
 socket.on('opponentGuessed', ({ feedback, guessNumber }) => {
+  theirGuessList.push({ feedback });
   // Show only colours on opponent board
   const hiddenLetters = Array(WORD_LENGTH).fill('');
   revealRow('opponentGrid', guessNumber - 1, hiddenLetters, feedback, false);
@@ -416,22 +435,36 @@ socket.on('wordWordleOver', ({ winner, word, myGuesses, theirGuesses, myName, th
   document.getElementById('guessInputSection').classList.add('disabled');
   document.getElementById('closeCallBanner').style.display = 'none';
 
-  // Winner display
-  if (bothFailed) {
-    document.getElementById('gameOverEmoji').textContent = '😮';
+  const iWon   = winner === myPlayerName;
+  const iDrew  = bothFailed;
+
+  // Store for share
+  lastGameResult = { winner, word, myGuesses, theirGuesses, myName: myPlayerName, theirName, bothFailed, iWon };
+
+  // Header styling
+  const header = document.getElementById('gameOverHeader');
+  header.className = 'game-over-header' + (iWon ? '' : iDrew ? ' draw' : ' lost');
+
+  if (iDrew) {
+    document.getElementById('gameOverEmoji').textContent = '🤝';
     document.getElementById('gameOverTitle').textContent = 'Nobody got it!';
-  } else if (winner === myPlayerName) {
+    document.getElementById('gameOverSubtitle').textContent = 'The word remains unsolved...';
+    soundWrong();
+  } else if (iWon) {
     document.getElementById('gameOverEmoji').textContent = '🏆';
     document.getElementById('gameOverTitle').textContent = 'You Won!';
+    document.getElementById('gameOverSubtitle').textContent = `Solved in ${myGuesses} guess${myGuesses!==1?'es':''}!`;
     soundWin();
-    confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+    setTimeout(() => confetti({ particleCount: 180, spread: 85, origin: { y: 0.55 }, colors: ['#11998e','#38ef7d','#fff'] }), 150);
   } else {
     document.getElementById('gameOverEmoji').textContent = '😢';
     document.getElementById('gameOverTitle').textContent = `${winner} Won!`;
+    document.getElementById('gameOverSubtitle').textContent = theirGuesses > 0
+      ? `They solved it in ${theirGuesses} guess${theirGuesses!==1?'es':''}` : '';
     soundWrong();
   }
 
-  // Reveal word
+  // Word reveal cubes
   const cubesContainer = document.getElementById('wordRevealCubes');
   cubesContainer.innerHTML = '';
   word.split('').forEach(letter => {
@@ -441,30 +474,123 @@ socket.on('wordWordleOver', ({ winner, word, myGuesses, theirGuesses, myName, th
     cubesContainer.appendChild(cube);
   });
 
-  // Stats
-  const statsLines = [];
-  if (!bothFailed) {
-    statsLines.push(`🏆 ${winner} solved it!`);
-  }
-  statsLines.push(`${myPlayerName}: ${myGuesses > 0 ? myGuesses + '/6 guesses' : 'did not solve'}`);
-  statsLines.push(`${theirName}: ${theirGuesses > 0 ? theirGuesses + '/6 guesses' : 'did not solve'}`);
-  document.getElementById('gameOverStats').innerHTML = statsLines.join('<br>');
+  // Stat cards
+  const statsEl = document.getElementById('finalStats');
+  const myCard  = makeStatCard(myPlayerName, myGuesses, iWon || (!iDrew && !iWon && myGuesses > 0 && myGuesses <= theirGuesses));
+  const theirCard = makeStatCard(theirName, theirGuesses, !iWon && !iDrew);
+  statsEl.innerHTML = '';
+  statsEl.appendChild(myCard);
+  statsEl.appendChild(theirCard);
 
+  // Boards reveal
+  buildBoardsReveal(word, myName, theirName);
+
+  // Reset controls
   if (isHost) {
-    document.getElementById('hostResetControls').style.display = 'block';
+    document.getElementById('hostResetControls').innerHTML = '<button class="btn-success" onclick="resetGame()">🔄 Play Again</button>';
   } else {
-    // Partner sees a waiting message
     document.getElementById('hostResetControls').innerHTML =
-      '<p style="text-align:center;color:rgba(255,255,255,0.7);font-size:0.9em;margin-bottom:12px">⏳ Waiting for host to start next round...</p>';
-    document.getElementById('hostResetControls').style.display = 'block';
+      '<p style="text-align:center;color:#718096;font-size:0.88em;margin-bottom:12px;font-weight:600">⏳ Waiting for host to start next round...</p>';
   }
+  document.getElementById('hostResetControls').style.display = 'block';
 
   showScreen('gameOverScreen');
 });
 
+function makeStatCard(name, guesses, isWinner) {
+  const card = document.createElement('div');
+  card.className = `stat-card ${isWinner ? 'winner-card' : 'loser-card'}`;
+  const solved = guesses > 0;
+  card.innerHTML = `
+    <div class="stat-name">${name}</div>
+    <div class="stat-score">${solved ? guesses + '/6' : '—'}</div>
+    <div class="stat-label">${solved ? 'guess' + (guesses !== 1 ? 'es' : '') : 'did not solve'}</div>
+    ${isWinner ? '<div class="stat-badge">🏆 Winner</div>' : ''}
+  `;
+  return card;
+}
+
+function buildBoardsReveal(word, myName, theirName) {
+  const container = document.getElementById('boardsReveal');
+  container.innerHTML = '';
+  // My board — full letters
+  container.appendChild(makeBoardRevealPanel(myName, myGuessList, true));
+  // Their board — colours only, now revealed with hidden cubes shown as coloured
+  container.appendChild(makeBoardRevealPanel(theirName, theirGuessList, false));
+}
+
+function makeBoardRevealPanel(name, guessList, showLetters) {
+  const panel = document.createElement('div');
+  panel.className = 'board-reveal-panel' + (showLetters ? ' winner-panel' : '');
+  panel.innerHTML = `<div class="board-reveal-name">${name}</div>`;
+  const grid = document.createElement('div');
+  grid.className = 'board-reveal-grid';
+  for (let r = 0; r < MAX_GUESSES; r++) {
+    const row = document.createElement('div');
+    row.className = 'board-reveal-row';
+    const guess = guessList[r];
+    for (let c = 0; c < WORD_LENGTH; c++) {
+      const cube = document.createElement('div');
+      if (guess) {
+        const fb = guess.feedback ? guess.feedback[c] : null;
+        cube.className = `board-reveal-cube ${fb || ''}`;
+        cube.textContent = showLetters && guess.guess ? guess.guess[c] : '';
+      } else {
+        cube.className = 'board-reveal-cube empty';
+      }
+      row.appendChild(cube);
+    }
+    grid.appendChild(row);
+  }
+  panel.appendChild(grid);
+  return panel;
+}
+
+function shareResult() {
+  if (!lastGameResult) return;
+  const { winner, word, myGuesses, theirGuesses, myName: me, theirName, bothFailed, iWon } = lastGameResult;
+  const lines = [`🔤 GAMERO Word Wordle`, ``];
+  if (bothFailed) lines.push(`🤝 Nobody solved "${word}"`);
+  else lines.push(`🏆 ${winner} solved it!`);
+  lines.push(``);
+  // Emoji grid for my board
+  lines.push(`${me}:`);
+  myGuessList.forEach(({feedback}) => {
+    lines.push(feedback.map(f => f==='green'?'🟩':f==='yellow'?'🟨':'⬜').join(''));
+  });
+  lines.push(``);
+  lines.push(`${theirName}:`);
+  theirGuessList.forEach(({feedback}) => {
+    lines.push(feedback.map(f => f==='green'?'🟩':f==='yellow'?'🟨':'⬜').join(''));
+  });
+  lines.push(``);
+  lines.push(`Play at GAMERO! 🎮`);
+
+  const text = lines.join('\n');
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('shareBtn');
+    btn.textContent = '✅ Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.innerHTML = '<span>📋</span> Share Result'; btn.classList.remove('copied'); }, 2000);
+  }).catch(() => {
+    // Fallback for browsers without clipboard API
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    const btn = document.getElementById('shareBtn');
+    btn.textContent = '✅ Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.innerHTML = '<span>📋</span> Share Result'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
 socket.on('wordWordleReset', () => {
   myGuessCount = 0; theirGuessCount = 0;
   gameOver = false; myKeyboardState = {};
+  myGuessList = []; theirGuessList = []; lastGameResult = null;
+  lastPreviewLength = 0;
   // Reset UI elements
   document.getElementById('readyArea').style.display = 'block';
   document.getElementById('readyBtn').disabled = false;

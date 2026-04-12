@@ -162,14 +162,37 @@
   <!-- Game Over Screen -->
   <div id="gameOverScreen" class="screen">
     <div class="game-over-card">
-      <div class="game-over-emoji" id="gameOverEmoji">🎉</div>
-      <h2 id="gameOverTitle"></h2>
-      <div class="word-reveal">
+
+      <!-- Header: win/lose/draw -->
+      <div class="game-over-header" id="gameOverHeader">
+        <span class="game-over-emoji" id="gameOverEmoji">🎉</span>
+        <div class="game-over-title" id="gameOverTitle"></div>
+        <div class="game-over-subtitle" id="gameOverSubtitle"></div>
+      </div>
+
+      <!-- Word reveal -->
+      <div class="word-reveal-section">
         <div class="word-reveal-label">The word was</div>
         <div class="word-reveal-cubes" id="wordRevealCubes"></div>
       </div>
-      <div class="game-over-stats" id="gameOverStats"></div>
+
+      <!-- Body: stats + boards -->
+      <div class="game-over-body">
+
+        <!-- Stat cards -->
+        <div class="final-stats" id="finalStats"></div>
+
+        <!-- Both boards revealed -->
+        <div class="boards-reveal" id="boardsReveal"></div>
+
+        <!-- Share button -->
+        <button class="share-btn" id="shareBtn" onclick="shareResult()">
+          <span>📋</span> Share Result
+        </button>
+
+      </div>
     </div>
+
     <div id="hostResetControls" style="display:none">
       <button class="btn-success" onclick="resetGame()">🔄 Play Again</button>
     </div>
