@@ -1,4 +1,4 @@
-const socket = io("https://gamero-server.onrender.com");
+const socket = io("http://localhost:3001");
 
 const MAX_GUESSES = 6;
 const WORD_LENGTH = 5;
@@ -310,6 +310,21 @@ socket.on('wordWordleStarted', () => {
   setTimeout(() => input.focus(), 200);
 
   GameroModal.success('Word chosen! Race to guess it!', 'Go!', '⚡');
+});
+
+socket.on('invalidWord', () => {
+  shakeRow('myGrid', myGuessCount);
+  soundWrong();
+  document.getElementById('guessHint').textContent = '❌ Not a valid word!';
+  const input = document.getElementById('wordInput');
+  input.disabled = false;
+  document.getElementById('guessBtn').disabled = false;
+  setTimeout(() => input.focus(), 100);
+  setTimeout(() => {
+    if (document.getElementById('guessHint').textContent === '❌ Not a valid word!') {
+      document.getElementById('guessHint').textContent = 'Type your guess and press Enter or →';
+    }
+  }, 2000);
 });
 
 socket.on('wordWordleResult', async ({ guess, feedback, guessNumber, solved }) => {
