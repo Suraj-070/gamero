@@ -917,7 +917,13 @@ io.on('connection', (socket) => {
 
   socket.on('resetWordWordle', ({ roomCode }) => {
     const room = rooms.get(roomCode);
-    if (!room || socket.id !== room.host.id) return;
+    if (!room) return;
+    // Handle reconnected host socket ID
+    if (socket.id !== room.host.id) {
+      const isPartner = room.partner && socket.id === room.partner.id;
+      if (isPartner) return;
+      room.host.id = socket.id; // update reconnected host
+    }
     room.wordWordleAnswer = null;
     room.host.wordGuesses = 0;
     room.host.wordSolved  = false;

@@ -1,4 +1,4 @@
-const socket = io("https://gamero-server.onrender.com");
+const socket = io("http://localhost:3001");
 
 const MAX_GUESSES = 6;
 const WORD_LENGTH = 5;
@@ -443,10 +443,14 @@ socket.on('wordWordleOver', ({ winner, word, myGuesses, theirGuesses, myName, th
 socket.on('wordWordleReset', () => {
   myGuessCount = 0; theirGuessCount = 0;
   gameOver = false; myKeyboardState = {};
+  // Reset UI elements
   document.getElementById('readyArea').style.display = 'block';
   document.getElementById('readyBtn').disabled = false;
   document.getElementById('readyBtn').textContent = '✅ I\'m Ready!';
   document.getElementById('hostResetControls').style.display = 'none';
+  document.getElementById('closeCallBanner').style.display = 'none';
+  document.getElementById('closeCallBanner').textContent = '🔥 Opponent is very close!';
+  document.getElementById('guessInputSection').classList.remove('disabled');
   document.getElementById('waitingStatus').innerHTML =
     `<span class="status-badge status-ready">✅ Ready to play again!</span>`;
   showScreen('waitingScreen');
