@@ -938,22 +938,36 @@ io.on('connection', (socket) => {
     if (solved) {
       player.wordSolved = true;
 
-      // Option C: opponent still gets all their remaining guesses
-      // Notify the SOLVER their board is done — show winner banner but keep opponent's input open
-      socket.emit('youSolved', {
-        word:        answer,
-        guessNumber: player.wordGuesses
-      });
+      // Check if opponent is already done (solved or out of guesses)
+      const opponentAlreadyDone = !opponent || opponent.wordSolved || opponent.wordGuesses >= 6;
 
-      // Tell opponent: winner solved it but YOU can still keep guessing!
-      if (opponent) {
+      if (opponentAlreadyDone) {
+        // Opponent is done — end the game immediately
+        endWordWordle(roomCode, room, answer);
+      } else {
+        // Option C — opponent still has guesses, let them keep going
+        socket.emit('youSolved', {
+          word:        answer,
+          guessNumber: player.wordGuesses
+        });
         socket.to(roomCode).emit('opponentSolved', {
           solverName:  player.name,
           guessNumber: player.wordGuesses
         });
-      } else {
-        // Solo — end immediately
-        endWordWordle(roomCode, room, answer);
+
+        // Safety timeout — if opponent never finishes in 90s, end the game anyway
+        setTimeout(() => {
+          const r = rooms.get(roomCode);
+          if (r && r.wordWordleAnswer && player.wordSolved) {
+            const opp = socket.id === r.host.id ? r.partner : r.host;
+            const oppDone = !opp || opp.wordSolved || opp.wordGuesses >= 6;
+            if (!oppDone) {
+              // Force opponent done and end
+              if (opp) opp.wordGuesses = 6;
+              endWordWordle(roomCode, r, answer);
+            }
+          }
+        }, 90000);
       }
 
     } else if (player.wordGuesses >= 6) {
@@ -962,7 +976,7 @@ io.on('connection', (socket) => {
       if (opponentDone) {
         endWordWordle(roomCode, room, answer);
       }
-      // else opponent still has guesses — wait for them to finish
+      // else opponent still has guesses remaining — wait for them to finish
     }
   });
 

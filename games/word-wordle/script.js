@@ -447,7 +447,14 @@ socket.on('wordWordleOver', ({ winner, word, myGuesses, theirGuesses, myName, th
   statsLines.push(`${theirName}: ${theirGuesses > 0 ? theirGuesses + '/6 guesses' : 'did not solve'}`);
   document.getElementById('gameOverStats').innerHTML = statsLines.join('<br>');
 
-  if (isHost) document.getElementById('hostResetControls').style.display = 'block';
+  if (isHost) {
+    document.getElementById('hostResetControls').style.display = 'block';
+  } else {
+    // Partner sees a waiting message
+    document.getElementById('hostResetControls').innerHTML =
+      '<p style="text-align:center;color:rgba(255,255,255,0.7);font-size:0.9em;margin-bottom:12px">⏳ Waiting for host to start next round...</p>';
+    document.getElementById('hostResetControls').style.display = 'block';
+  }
 
   showScreen('gameOverScreen');
 });
