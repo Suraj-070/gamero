@@ -374,9 +374,32 @@ socket.on('opponentGuessed', ({ feedback, guessNumber }) => {
   }
 });
 
+socket.on('youSolved', ({ word, guessNumber }) => {
+  // I solved it — show celebration but game isn't over yet (opponent still guessing)
+  soundWin();
+  confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+  document.getElementById('guessHint').textContent = `🎉 You got it in ${guessNumber}! Waiting for opponent to finish...`;
+  document.getElementById('guessInputSection').classList.add('disabled');
+  gameOver = true; // stop me from guessing more
+});
+
+socket.on('opponentSolved', ({ solverName, guessNumber }) => {
+  // Opponent solved it — show banner but keep MY input open so I can still guess
+  soundClose();
+  const banner = document.getElementById('closeCallBanner');
+  banner.textContent = `🏆 ${solverName} solved it in ${guessNumber}! You still have your remaining guesses!`;
+  banner.style.display = 'block';
+  banner.style.background = 'linear-gradient(135deg,#fff5f5,#fed7d7)';
+  banner.style.borderColor = '#fc8181';
+  banner.style.color = '#c53030';
+  // Don't set gameOver — opponent can still guess
+  document.getElementById('guessHint').textContent = `Keep going! Can you solve it too?`;
+});
+
 socket.on('wordWordleOver', ({ winner, word, myGuesses, theirGuesses, myName, theirName, bothFailed }) => {
   gameOver = true;
   document.getElementById('guessInputSection').classList.add('disabled');
+  document.getElementById('closeCallBanner').style.display = 'none';
 
   // Winner display
   if (bothFailed) {

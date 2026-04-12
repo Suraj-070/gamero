@@ -415,6 +415,52 @@ function calcWordFeedback(guess, answer) {
   return result;
 }
 
+
+function endWordWordle(roomCode, room, answer) {
+  const host    = room.host;
+  const partner = room.partner;
+  room.gameStarted = false;
+
+  const hostSolved    = host.wordSolved;
+  const partnerSolved = partner ? partner.wordSolved : false;
+  const bothFailed    = !hostSolved && !partnerSolved;
+
+  // Winner = whoever solved it (if both solved, fewest guesses wins; tie = host wins)
+  let winner = null;
+  if (hostSolved && partnerSolved) {
+    winner = host.wordGuesses <= partner.wordGuesses ? host.name : partner.name;
+  } else if (hostSolved) {
+    winner = host.name;
+  } else if (partnerSolved) {
+    winner = partner ? partner.name : null;
+  }
+
+  const io_ref = global._gameroIO;
+  if (!io_ref) return;
+
+  io_ref.to(host.id).emit('wordWordleOver', {
+    winner,
+    word:         answer,
+    myGuesses:    hostSolved    ? host.wordGuesses    : 0,
+    theirGuesses: partnerSolved ? partner.wordGuesses : 0,
+    myName:       host.name,
+    theirName:    partner ? partner.name : '',
+    bothFailed
+  });
+  if (partner) {
+    io_ref.to(partner.id).emit('wordWordleOver', {
+      winner,
+      word:         answer,
+      myGuesses:    partnerSolved ? partner.wordGuesses : 0,
+      theirGuesses: hostSolved    ? host.wordGuesses    : 0,
+      myName:       partner.name,
+      theirName:    host.name,
+      bothFailed
+    });
+  }
+}
+
+global._gameroIO = io;
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
 
@@ -833,63 +879,32 @@ io.on('connection', (socket) => {
 
     if (solved) {
       player.wordSolved = true;
-      const opponentGuesses = opponent ? (opponent.wordSolved ? opponent.wordGuesses : 0) : 0;
-      io.to(roomCode).emit('wordWordleOver', {
-        winner:     player.name,
-        word:       answer,
-        myGuesses:  null, // each player gets personalised values below
-        bothFailed: false
-      });
-      // Send personalised gameOver to each socket
-      const hostSolved    = room.host.wordSolved;
-      const partnerSolved = room.partner ? room.partner.wordSolved : false;
-      io.to(room.host.id).emit('wordWordleOver', {
-        winner:      player.name,
+
+      // Option C: opponent still gets all their remaining guesses
+      // Notify the SOLVER their board is done — show winner banner but keep opponent's input open
+      socket.emit('youSolved', {
         word:        answer,
-        myGuesses:   hostSolved   ? room.host.wordGuesses   : 0,
-        theirGuesses: partnerSolved ? room.partner.wordGuesses : 0,
-        myName:      room.host.name,
-        theirName:   room.partner ? room.partner.name : '',
-        bothFailed:  false
+        guessNumber: player.wordGuesses
       });
-      if (room.partner) {
-        io.to(room.partner.id).emit('wordWordleOver', {
-          winner:       player.name,
-          word:         answer,
-          myGuesses:    partnerSolved ? room.partner.wordGuesses : 0,
-          theirGuesses: hostSolved    ? room.host.wordGuesses    : 0,
-          myName:       room.partner.name,
-          theirName:    room.host.name,
-          bothFailed:   false
+
+      // Tell opponent: winner solved it but YOU can still keep guessing!
+      if (opponent) {
+        socket.to(roomCode).emit('opponentSolved', {
+          solverName:  player.name,
+          guessNumber: player.wordGuesses
         });
+      } else {
+        // Solo — end immediately
+        endWordWordle(roomCode, room, answer);
       }
-      room.gameStarted = false;
+
     } else if (player.wordGuesses >= 6) {
-      // This player ran out — check if opponent also done
+      // This player ran out of guesses
       const opponentDone = !opponent || opponent.wordSolved || opponent.wordGuesses >= 6;
       if (opponentDone) {
-        io.to(room.host.id).emit('wordWordleOver', {
-          winner:       room.host.wordSolved ? room.host.name : (room.partner && room.partner.wordSolved ? room.partner.name : null),
-          word:         answer,
-          myGuesses:    room.host.wordSolved ? room.host.wordGuesses : 0,
-          theirGuesses: room.partner && room.partner.wordSolved ? room.partner.wordGuesses : 0,
-          myName:       room.host.name,
-          theirName:    room.partner ? room.partner.name : '',
-          bothFailed:   !room.host.wordSolved && !(room.partner && room.partner.wordSolved)
-        });
-        if (room.partner) {
-          io.to(room.partner.id).emit('wordWordleOver', {
-            winner:       room.partner.wordSolved ? room.partner.name : (room.host.wordSolved ? room.host.name : null),
-            word:         answer,
-            myGuesses:    room.partner.wordSolved ? room.partner.wordGuesses : 0,
-            theirGuesses: room.host.wordSolved ? room.host.wordGuesses : 0,
-            myName:       room.partner.name,
-            theirName:    room.host.name,
-            bothFailed:   !room.host.wordSolved && !room.partner.wordSolved
-          });
-        }
-        room.gameStarted = false;
+        endWordWordle(roomCode, room, answer);
       }
+      // else opponent still has guesses — wait for them to finish
     }
   });
 
@@ -960,7 +975,6 @@ const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   console.log(`🎮 GAMERO Server running on port ${PORT}`);
   console.log(`✅ Number Guessing ready`);
-  console.log(`✅ Word Wordle ready`);
   console.log(`✅ Number Wordle ready`);
   console.log(`✅ Trivia Battle ready`);
 });
