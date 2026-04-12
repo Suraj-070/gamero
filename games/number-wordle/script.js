@@ -1,4 +1,4 @@
-const socket = io("https://gamero-server.onrender.com");
+const socket = io(GAMERO_CONFIG.SERVER_URL);
 
 let myPlayerName = "";
 let partnerPlayerName = "";
@@ -205,8 +205,19 @@ function shakeInputs() {
 }
 
 // ─── SOCKET EVENTS ────────────────────────────────────────────────────────────
+
+// ─── Reconnection ─────────────────────────────
+// Attach after socket + state vars are declared
+setTimeout(() => {
+  GAMERO_RECONNECT.attach(socket, currentRoomCode, GAMERO_PLAYER.getName());
+  // Re-attach when roomCode changes (after joining/creating)
+  const _origSetRC = (v) => { currentRoomCode = v; GAMERO_RECONNECT.attach(socket, v, myPlayerName || GAMERO_PLAYER.getName()); };
+  // Patch roomCreated and roomJoined to update reconnect context
+}, 0);
+
 socket.on("roomCreated", ({ roomCode, playerName, isHost: host }) => {
   currentRoomCode = roomCode; myPlayerName = playerName; isHost = host;
+  GAMERO_RECONNECT.attach(socket, roomCode, playerName);
   document.getElementById("displayRoomCode").textContent = roomCode;
   showScreen("waitingScreen");
 });
@@ -223,6 +234,7 @@ socket.on("partnerJoined", ({ partnerName }) => {
 
 socket.on("roomJoined", ({ roomCode, playerName, isHost: host, hostName }) => {
   currentRoomCode = roomCode; myPlayerName = playerName; isHost = host; partnerPlayerName = hostName;
+  GAMERO_RECONNECT.attach(socket, roomCode, playerName);
   document.getElementById("displayRoomCode").textContent = roomCode;
   document.getElementById("waitingStatus").innerHTML = `<span class="status-badge status-ready">✅ Connected! Waiting for host to set difficulty...</span>`;
   showScreen("waitingScreen");

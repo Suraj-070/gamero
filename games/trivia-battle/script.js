@@ -1,5 +1,5 @@
 // CHANGE THIS URL TO YOUR DEPLOYED SERVER
-const socket = io('https://gamero-server.onrender.com');
+const socket = io(GAMERO_CONFIG.SERVER_URL);
 
 let myPlayerName = '';
 let partnerPlayerName = '';
@@ -16,10 +16,21 @@ let myAnswer = null;
 let timerInterval = null;
 
 // Socket event listeners
+
+// ─── Reconnection ─────────────────────────────
+// Attach after socket + state vars are declared
+setTimeout(() => {
+  GAMERO_RECONNECT.attach(socket, currentRoomCode, GAMERO_PLAYER.getName());
+  // Re-attach when roomCode changes (after joining/creating)
+  const _origSetRC = (v) => { currentRoomCode = v; GAMERO_RECONNECT.attach(socket, v, myPlayerName || GAMERO_PLAYER.getName()); };
+  // Patch roomCreated and roomJoined to update reconnect context
+}, 0);
+
 socket.on('roomCreated', ({ roomCode, playerName, isHost: host }) => {
     currentRoomCode = roomCode;
     myPlayerName = playerName;
     isHost = host;
+    GAMERO_RECONNECT.attach(socket, roomCode, playerName);
     document.getElementById('setupRoomCode').textContent = roomCode;
     document.getElementById('setupStatus').innerHTML = 
         '<span class="status-badge status-waiting">⏳ Waiting for partner...</span>';
@@ -42,6 +53,7 @@ socket.on('roomJoined', ({ roomCode, playerName, isHost: host, hostName }) => {
     myPlayerName = playerName;
     isHost = host;
     partnerPlayerName = hostName;
+    GAMERO_RECONNECT.attach(socket, roomCode, playerName);
     document.getElementById('setupRoomCode').textContent = roomCode;
     document.getElementById('setupStatus').innerHTML = 
         `<span class="status-badge status-ready">✅ Connected to ${hostName}'s game!</span>`;

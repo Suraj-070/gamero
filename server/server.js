@@ -19,6 +19,11 @@ app.use(express.json());
 // Store active game rooms
 const rooms = new Map();
 
+// Track disconnected players — give them 30s to reconnect before removing them
+// Map of socketId -> { roomCode, role, timer }
+const disconnected = new Map();
+const RECONNECT_GRACE_MS = 30000;
+
 // Generate random room code
 function generateRoomCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -463,6 +468,59 @@ function endWordWordle(roomCode, room, answer) {
 global._gameroIO = io;
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
+
+  // Rejoin a room after reconnection
+  socket.on('rejoinRoom', ({ roomCode, playerName }) => {
+    const room = rooms.get(roomCode);
+    if (!room) {
+      socket.emit('rejoinFailed', { reason: 'Room no longer exists' });
+      return;
+    }
+
+    // Match by name to figure out which player they are
+    const isHost    = room.host.name === playerName;
+    const isPartner = room.partner && room.partner.name === playerName;
+
+    if (!isHost && !isPartner) {
+      socket.emit('rejoinFailed', { reason: 'Name not recognised in this room' });
+      return;
+    }
+
+    // Update socket ID
+    if (isHost) {
+      room.host.id = socket.id;
+    } else {
+      room.partner.id = socket.id;
+    }
+
+    socket.join(roomCode);
+
+    // Cancel any pending removal timer
+    for (const [oldId, info] of disconnected.entries()) {
+      if (info.roomCode === roomCode && info.playerName === playerName) {
+        clearTimeout(info.timer);
+        disconnected.delete(oldId);
+        break;
+      }
+    }
+
+    // Tell this player they've rejoined successfully with current room state
+    socket.emit('rejoined', {
+      roomCode,
+      playerName,
+      isHost,
+      partnerName: isHost ? (room.partner ? room.partner.name : null) : room.host.name,
+      gameStarted: room.gameStarted,
+      currentTurn: room.currentTurn || null,
+      wordleDifficulty: room.wordleDifficulty || 'easy',
+      wordWordleActive: !!room.wordWordleAnswer,
+    });
+
+    // Tell the other player they're back
+    socket.to(roomCode).emit('partnerRejoined', { playerName });
+
+    console.log(`🔄 ${playerName} rejoined room ${roomCode} as ${isHost ? 'host' : 'partner'}`);
+  });
 
   // Create new room
   socket.on('createRoom', (playerName) => {
@@ -961,18 +1019,43 @@ io.on('connection', (socket) => {
   // Disconnect
   socket.on('disconnect', () => {
     console.log('User disconnected:', socket.id);
-    
-    // Find and clean up room
+
     for (const [code, room] of rooms.entries()) {
-      if (room.host.id === socket.id) {
-        io.to(code).emit('hostLeft');
-        rooms.delete(code);
-      } else if (room.partner && room.partner.id === socket.id) {
-        room.partner = null;
-        room.gameStarted = false;
-        room.triviaData = null;
-        io.to(room.host.id).emit('partnerLeft');
-      }
+      const isHost    = room.host.id === socket.id;
+      const isPartner = room.partner && room.partner.id === socket.id;
+      if (!isHost && !isPartner) continue;
+
+      const playerName = isHost ? room.host.name : room.partner.name;
+      console.log(`⏳ ${playerName} disconnected from room ${code} — ${RECONNECT_GRACE_MS/1000}s grace period`);
+
+      // Notify the other player
+      socket.to(code).emit('partnerDisconnected', {
+        playerName,
+        gracePeriodSeconds: RECONNECT_GRACE_MS / 1000
+      });
+
+      // Start grace period timer
+      const timer = setTimeout(() => {
+        // Grace period expired — actually remove them
+        disconnected.delete(socket.id);
+        const roomStillExists = rooms.get(code);
+        if (!roomStillExists) return;
+
+        if (isHost) {
+          io.to(code).emit('hostLeft');
+          rooms.delete(code);
+          console.log(`❌ Host ${playerName} never came back — room ${code} deleted`);
+        } else {
+          roomStillExists.partner = null;
+          roomStillExists.gameStarted = false;
+          roomStillExists.triviaData = null;
+          io.to(roomStillExists.host.id).emit('partnerLeft');
+          console.log(`❌ Partner ${playerName} never came back — removed from room ${code}`);
+        }
+      }, RECONNECT_GRACE_MS);
+
+      disconnected.set(socket.id, { roomCode: code, playerName, isHost, timer });
+      break;
     }
   });
 });
