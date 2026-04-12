@@ -106,12 +106,6 @@
       🔥 Opponent is very close!
     </div>
 
-    <!-- Typing indicator -->
-    <div class="typing-indicator" id="typingIndicator">
-      <span id="typingName">Opponent</span> is typing
-      <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
-    </div>
-
     <div class="game-board">
       <!-- My Board -->
       <div class="player-board me" id="myBoard">
@@ -133,7 +127,13 @@
         </div>
         <!-- 6 rows of 5 cubes — colours only, no letters -->
         <div class="wordle-grid" id="opponentGrid"></div>
-        <div class="hidden-note">Letters hidden 👁️</div>
+        <div class="opponent-footer">
+          <div class="hidden-note">Letters hidden 👁️</div>
+          <div class="typing-indicator" id="typingIndicator">
+            <span id="typingName">Opponent</span> is typing
+            <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
+          </div>
+        </div>
       </div>
     </div>
 

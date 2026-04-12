@@ -288,14 +288,28 @@ button:active {
 }
 
 /* Typing indicator */
+/* Opponent footer — hidden note + typing indicator stacked */
+.opponent-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  min-height: 36px;
+}
 .typing-indicator {
   display: none;
   align-items: center;
+  justify-content: center;
   gap: 5px;
   font-size: 0.78em;
-  color: #718096;
-  margin-bottom: 8px;
-  min-height: 18px;
+  color: #667eea;
+  font-weight: 600;
+  background: rgba(102, 126, 234, 0.08);
+  border: 1.5px solid rgba(102, 126, 234, 0.2);
+  border-radius: 20px;
+  padding: 5px 12px;
+  width: 100%;
 }
 .typing-indicator.visible {
   display: flex;
@@ -303,7 +317,7 @@ button:active {
 .typing-dot {
   width: 5px;
   height: 5px;
-  background: #11998e;
+  background: #667eea;
   border-radius: 50%;
   animation: typingBounce 1.2s infinite;
 }
