@@ -585,12 +585,13 @@ button:active {
 .secret-number-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  gap: 10px;
   margin-bottom: 12px;
   flex-wrap: wrap;
-  padding: 8px 10px;
+  padding: 10px 12px;
   background: #f8f9ff;
-  border-radius: 10px;
+  border-radius: 12px;
   border: 1.5px solid #e8ecff;
 }
 .secret-label {
@@ -605,24 +606,27 @@ button:active {
 /* ── Cubes ── */
 .cube-row {
   display: flex;
-  gap: 5px;
+  gap: 8px;
   flex-wrap: nowrap;
+  justify-content: center;
+  padding: 3px 0;
 }
 .cube {
-  width: 40px;
-  height: 40px;
+  width: 46px;
+  height: 46px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.2em;
+  font-size: 1.35em;
   font-weight: 900;
-  border-radius: 9px;
+  border-radius: 10px;
   border: 2px solid #e2e8f0;
   background: white;
   color: #1a202c;
   flex-shrink: 0;
   font-family: "Courier New", monospace;
   transition: transform 0.1s;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.07);
 }
 .cube.flip {
   animation: cubeFlip 0.5s ease forwards;
@@ -672,10 +676,13 @@ button:active {
 
 /* ── Guesses container ── */
 .guesses-container {
-  max-height: 210px;
+  max-height: 230px;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding-right: 2px;
+  padding: 4px 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 .guesses-container::-webkit-scrollbar {
   width: 4px;
@@ -1231,12 +1238,12 @@ button:active {
     padding: 10px;
   }
   .cube {
-    width: 34px;
-    height: 34px;
-    font-size: 1.05em;
+    width: 38px;
+    height: 38px;
+    font-size: 1.15em;
   }
   .cube-row {
-    gap: 4px;
+    gap: 6px;
   }
   .digit-input {
     width: 50px;
@@ -1272,9 +1279,12 @@ button:active {
 }
 @media (max-width: 400px) {
   .cube {
-    width: 29px;
-    height: 29px;
-    font-size: 0.9em;
+    width: 32px;
+    height: 32px;
+    font-size: 0.95em;
+  }
+  .cube-row {
+    gap: 5px;
   }
   .digit-input {
     width: 44px;
