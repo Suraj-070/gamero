@@ -6,7 +6,7 @@
 const GAMERO_CONFIG = {
   SERVER_URL: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:3001'
-    : 'https://YOUR-SERVER.onrender.com', // ← change this once when you deploy
+    : 'https://gamero-server.onrender.com', // ← change this once when you deploy
 };
 
 // ─── Player name persistence ──────────────────
