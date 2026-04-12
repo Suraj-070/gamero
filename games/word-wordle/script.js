@@ -277,14 +277,13 @@ setTimeout(() => {
 socket.on('roomCreated', ({ roomCode, playerName, isHost: host }) => {
   currentRoomCode = roomCode; myPlayerName = playerName; isHost = host;
   GAMERO_RECONNECT.attach(socket, roomCode, playerName);
-  document.getElementById('displayRoomCode').textContent = roomCode;
+  GAMERO_WAITING.build('waitingCardContainer', roomCode, playerName, ['Connected','Get ready','Play!']);
   showScreen('waitingScreen');
 });
 
 socket.on('partnerJoined', ({ partnerName }) => {
   partnerPlayerName = partnerName;
-  document.getElementById('waitingStatus').innerHTML =
-    `<span class="status-badge status-ready">✅ ${partnerName} joined!</span>`;
+  GAMERO_WAITING.partnerJoined(partnerName);
   document.getElementById('readyArea').style.display = 'block';
 });
 
@@ -292,16 +291,14 @@ socket.on('roomJoined', ({ roomCode, playerName, isHost: host, hostName }) => {
   currentRoomCode = roomCode; myPlayerName = playerName;
   isHost = host; partnerPlayerName = hostName;
   GAMERO_RECONNECT.attach(socket, roomCode, playerName);
-  document.getElementById('displayRoomCode').textContent = roomCode;
-  document.getElementById('waitingStatus').innerHTML =
-    `<span class="status-badge status-ready">✅ Connected! Waiting for host...</span>`;
+  GAMERO_WAITING.build('waitingCardContainer', roomCode, playerName, ['Connected','Get ready','Play!']);
+  GAMERO_WAITING.partnerJoined(hostName);
   document.getElementById('readyArea').style.display = 'block';
   showScreen('waitingScreen');
 });
 
 socket.on('playerReady', ({ playerName }) => {
-  document.getElementById('waitingStatus').innerHTML =
-    `<span class="status-badge status-waiting">⏳ ${playerName} is ready — waiting for you...</span>`;
+  GAMERO_WAITING.advanceStep(2);
 });
 
 socket.on('wordWordleStarted', () => {
@@ -599,8 +596,8 @@ socket.on('wordWordleReset', () => {
   document.getElementById('closeCallBanner').style.display = 'none';
   document.getElementById('closeCallBanner').textContent = '🔥 Opponent is very close!';
   document.getElementById('guessInputSection').classList.remove('disabled');
-  document.getElementById('waitingStatus').innerHTML =
-    `<span class="status-badge status-ready">✅ Ready to play again!</span>`;
+  GAMERO_WAITING.build('waitingCardContainer', currentRoomCode, myPlayerName, ['Connected','Get ready','Play!']);
+  GAMERO_WAITING.partnerJoined(partnerPlayerName);
   showScreen('waitingScreen');
 });
 

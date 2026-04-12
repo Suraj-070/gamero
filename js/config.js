@@ -6,7 +6,7 @@
 const GAMERO_CONFIG = {
   SERVER_URL: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:3001'
-    : 'https://gamero-server.onrender.com', // ← change this once when you deploy
+    : 'https://YOUR-SERVER.onrender.com', // ← change this once when you deploy
 };
 
 // ─── Player name persistence ──────────────────
@@ -160,3 +160,146 @@ const GAMERO_RECONNECT = {
 document.addEventListener('DOMContentLoaded', () => {
   GAMERO_PLAYER.init();
 });
+
+// ═══════════════════════════════════════════════
+// GAMERO — Animated Waiting Room Builder
+// Injects animated waiting UI into any game
+// ═══════════════════════════════════════════════
+const GAMERO_WAITING = {
+
+  // Call this once after room is created/joined
+  // containerId = the div to inject into
+  // steps = array of step labels e.g. ['Connect','Set Up','Play!']
+  build(containerId, roomCode, myName, steps = ['Connect', 'Set up', 'Play!']) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+
+    el.innerHTML = `
+      <div class="waiting-card">
+
+        <!-- Animated header with room code -->
+        <div class="waiting-header">
+          <div class="waiting-room-label">Room Code</div>
+          <div class="waiting-room-code" id="gw-roomcode">${roomCode}</div>
+          <button class="copy-code-btn" onclick="GAMERO_WAITING.copyCode('${roomCode}')" id="gw-copybtn">
+            <span>📋</span> Tap to copy
+          </button>
+        </div>
+
+        <div class="waiting-body">
+
+          <!-- Step progress -->
+          <div class="waiting-steps" id="gw-steps">
+            ${steps.map((s, i) => `
+              <div class="waiting-step ${i === 0 ? 'done' : i === 1 ? 'active' : ''}" id="gw-step-${i}">
+                <div class="step-circle">${i === 0 ? '✓' : i + 1}</div>
+                <div class="step-label">${s}</div>
+              </div>
+            `).join('')}
+          </div>
+
+          <!-- Partner joined banner (hidden until joined) -->
+          <div class="partner-joined-banner" id="gw-joined-banner">
+            <div class="pjb-icon">🎉</div>
+            <div>
+              <div class="pjb-text" id="gw-joined-text">Partner joined!</div>
+              <div class="pjb-sub">Get ready to play</div>
+            </div>
+          </div>
+
+          <!-- Avatar + status row -->
+          <div class="waiting-status-row">
+            <div class="waiting-avatars">
+              <div class="waiting-avatar me" id="gw-avatar-me">🎮</div>
+              <div class="waiting-vs">VS</div>
+              <div class="waiting-avatar partner" id="gw-avatar-partner">?</div>
+            </div>
+            <div class="waiting-status-text">
+              <div class="waiting-status-title" id="gw-status-title">Waiting for opponent...</div>
+              <div class="waiting-status-sub" id="gw-status-sub">${myName} is ready</div>
+              <div class="waiting-dots" id="gw-dots">
+                <div class="waiting-dot"></div>
+                <div class="waiting-dot"></div>
+                <div class="waiting-dot"></div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    `;
+  },
+
+  // Call when partner connects
+  partnerJoined(partnerName) {
+    // Update avatar
+    const avatar = document.getElementById('gw-avatar-partner');
+    if (avatar) {
+      avatar.textContent = '👤';
+      avatar.classList.add('connected');
+    }
+    // Show joined banner
+    const banner = document.getElementById('gw-joined-banner');
+    const bannerText = document.getElementById('gw-joined-text');
+    if (banner) { banner.classList.add('visible'); }
+    if (bannerText) bannerText.textContent = `${partnerName} joined!`;
+
+    // Update status
+    const title = document.getElementById('gw-status-title');
+    const sub   = document.getElementById('gw-status-sub');
+    const dots  = document.getElementById('gw-dots');
+    if (title) title.textContent = 'Both players connected!';
+    if (sub)   sub.textContent   = `${partnerName} is here`;
+    if (dots)  dots.style.display = 'none';
+
+    // Advance step
+    this.advanceStep(2);
+
+    // Sound
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      [523, 659, 784].forEach((f, i) => {
+        setTimeout(() => {
+          const o = ctx.createOscillator(), g = ctx.createGain();
+          o.connect(g); g.connect(ctx.destination);
+          o.type = 'sine'; o.frequency.value = f;
+          g.gain.setValueAtTime(0.2, ctx.currentTime);
+          g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+          o.start(); o.stop(ctx.currentTime + 0.2);
+        }, i * 100);
+      });
+    } catch(e) {}
+  },
+
+  advanceStep(activeIndex) {
+    document.querySelectorAll('[id^="gw-step-"]').forEach((el, i) => {
+      el.classList.remove('done', 'active');
+      if (i < activeIndex) {
+        el.classList.add('done');
+        el.querySelector('.step-circle').textContent = '✓';
+      } else if (i === activeIndex) {
+        el.classList.add('active');
+      }
+    });
+  },
+
+  copyCode(code) {
+    const btn = document.getElementById('gw-copybtn');
+    navigator.clipboard.writeText(code).then(() => {
+      if (btn) { btn.innerHTML = '<span>✅</span> Copied!'; btn.classList.add('copied'); }
+      setTimeout(() => {
+        if (btn) { btn.innerHTML = '<span>📋</span> Tap to copy'; btn.classList.remove('copied'); }
+      }, 2000);
+    }).catch(() => {
+      // Fallback
+      const ta = document.createElement('textarea');
+      ta.value = code; ta.style.cssText = 'position:fixed;opacity:0';
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      document.execCommand('copy'); document.body.removeChild(ta);
+      if (btn) { btn.innerHTML = '<span>✅</span> Copied!'; btn.classList.add('copied'); }
+      setTimeout(() => {
+        if (btn) { btn.innerHTML = '<span>📋</span> Tap to copy'; btn.classList.remove('copied'); }
+      }, 2000);
+    });
+  }
+};

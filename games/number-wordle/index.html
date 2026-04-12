@@ -59,15 +59,8 @@
 
   <!-- Waiting Room -->
   <div id="waitingScreen" class="screen">
-    <h1>🎮 Game Room</h1>
-    <div class="info-box">
-      <p style="color:#718096;margin-bottom:4px;font-size:0.85em">Room Code</p>
-      <div id="displayRoomCode" class="room-code">------</div>
-      <p style="color:#718096;font-size:0.82em;margin-top:6px">Share with your friend!</p>
-    </div>
-    <div id="waitingStatus" class="info-box">
-      <span class="status-badge status-waiting">⏳ Waiting for partner...</span>
-    </div>
+    <h1>🔢 Number Wordle</h1>
+    <div id="waitingCardContainer"></div>
 
     <!-- Difficulty Picker (host only) -->
     <div id="difficultyArea" style="display:none">
@@ -184,21 +177,22 @@
 
   <!-- Game Over Screen -->
   <div id="gameOverScreen" class="screen">
-    <div class="game-over">
-      <h2 id="winnerEmoji">🎉</h2>
-      <h3 id="winnerText" style="font-size:1.8em;margin-bottom:14px"></h3>
-      <div class="game-stats">
-        <p><strong id="winnerNameStats"></strong> guessed in <strong id="winnerGuesses"></strong> tries!</p>
+    <div class="game-over-card">
+      <!-- Header -->
+      <div class="game-over-header" id="gameOverHeader">
+        <span class="game-over-emoji" id="gameOverEmoji">🎉</span>
+        <div class="game-over-title" id="gameOverTitle"></div>
+        <div class="game-over-subtitle" id="gameOverSubtitle"></div>
       </div>
-      <div class="revealed-numbers">
-        <div class="revealed-number">
-          <p><strong id="hostNameReveal"></strong>'s number:</p>
-          <div class="cube-row" id="hostNumberReveal" style="justify-content:center"></div>
-        </div>
-        <div class="revealed-number">
-          <p><strong id="partnerNameReveal"></strong>'s number:</p>
-          <div class="cube-row" id="partnerNumberReveal" style="justify-content:center"></div>
-        </div>
+      <!-- Number reveal -->
+      <div class="number-reveal-section">
+        <div class="number-reveal-label">The secret numbers were</div>
+        <div class="number-reveal-row" id="numberRevealRow"></div>
+      </div>
+      <!-- Body -->
+      <div class="game-over-body">
+        <div class="final-stats" id="finalStats"></div>
+        <div class="numbers-reveal-grid" id="numbersRevealGrid"></div>
       </div>
     </div>
     <div id="hostResetControls" style="display:none">

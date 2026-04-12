@@ -36,24 +36,16 @@
   <div id="waitingScreen" class="screen">
     <a href="../../index.html" class="back-link">← Back to Games</a>
     <h1>🎯 Number Guessing</h1>
-    <div class="waiting-container">
-      <div class="room-code-display">
-        <div class="room-code-label">Room Code</div>
-        <div class="room-code-value" id="roomCodeValue">------</div>
-        <p style="margin-top:10px;font-size:0.85em;opacity:0.9">Share this with your friend!</p>
-      </div>
-      <div id="waitingStatus">
-        <span class="status-badge status-waiting">⏳ Waiting for partner...</span>
-      </div>
-      <div id="setupArea" style="display:none">
-        <div class="setup-area">
-          <h3 style="margin-bottom:12px;text-align:center;color:#2d3748">Set Your Secret Number</h3>
-          <div class="input-group">
-            <label>Your Secret Number:</label>
-            <input type="number" id="secretNumber" placeholder="Enter any number" inputmode="numeric" pattern="[0-9]*">
-          </div>
-          <button onclick="setSecretNumber()" class="primary-btn">🔒 Lock It In!</button>
+    <!-- Animated waiting card injected by GAMERO_WAITING.build() -->
+    <div id="waitingCardContainer"></div>
+    <div id="setupArea" style="display:none">
+      <div class="setup-area">
+        <h3 style="margin-bottom:12px;text-align:center;color:#2d3748">Set Your Secret Number</h3>
+        <div class="input-group">
+          <label>Your Secret Number:</label>
+          <input type="number" id="secretNumber" placeholder="Enter any number" inputmode="numeric" pattern="[0-9]*">
         </div>
+        <button onclick="setSecretNumber()" class="primary-btn">🔒 Lock It In!</button>
       </div>
     </div>
   </div>

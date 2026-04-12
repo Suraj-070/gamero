@@ -301,3 +301,286 @@ button {
 }
 #gamero-partner-away.visible { display: block; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+
+
+/* ═══════════════════════════════════════════════
+   GAMERO — Animated Waiting Component
+   Used across all games for "waiting for partner"
+═══════════════════════════════════════════════ */
+
+/* ── Waiting card wrapper ── */
+.waiting-card {
+  background: white;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+  margin-bottom: 16px;
+}
+
+/* ── Animated header ── */
+.waiting-header {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  padding: 28px 20px 24px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Animated background orbs */
+.waiting-header::before,
+.waiting-header::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0.15;
+  animation: orbFloat 4s ease-in-out infinite;
+}
+.waiting-header::before {
+  width: 120px; height: 120px;
+  background: white;
+  top: -30px; left: -30px;
+  animation-delay: 0s;
+}
+.waiting-header::after {
+  width: 80px; height: 80px;
+  background: white;
+  bottom: -20px; right: -20px;
+  animation-delay: 2s;
+}
+@keyframes orbFloat {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%       { transform: translate(8px, 8px) scale(1.08); }
+}
+
+/* ── Room code display ── */
+.waiting-room-code {
+  font-size: 2.6em;
+  font-weight: 900;
+  letter-spacing: 8px;
+  color: white;
+  font-family: 'Courier New', monospace;
+  margin: 6px 0 10px;
+  position: relative; z-index: 1;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.2);
+}
+.waiting-room-label {
+  font-size: 0.75em;
+  font-weight: 700;
+  color: rgba(255,255,255,0.7);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  position: relative; z-index: 1;
+}
+
+/* Copy room code button */
+.copy-code-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255,255,255,0.18);
+  border: 1.5px solid rgba(255,255,255,0.35);
+  color: white;
+  border-radius: 20px;
+  padding: 6px 16px;
+  font-size: 0.8em;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 8px;
+  width: auto;
+  transition: background 0.15s, transform 0.12s;
+  position: relative; z-index: 1;
+  touch-action: manipulation;
+}
+.copy-code-btn:active { transform: scale(0.95); }
+.copy-code-btn.copied {
+  background: rgba(72,187,120,0.4);
+  border-color: rgba(72,187,120,0.6);
+}
+
+/* ── Body ── */
+.waiting-body {
+  padding: 20px;
+}
+
+/* ── Animated status ── */
+.waiting-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 16px;
+  background: #f7fafc;
+  border-radius: 14px;
+  border: 1.5px solid #e2e8f0;
+  margin-bottom: 16px;
+}
+
+/* Pulsing avatar circles */
+.waiting-avatars {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.waiting-avatar {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.3em;
+  position: relative;
+  flex-shrink: 0;
+}
+.waiting-avatar.me {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  box-shadow: 0 4px 12px rgba(102,126,234,0.4);
+  animation: avatarPulse 2s ease-in-out infinite;
+}
+.waiting-avatar.partner {
+  background: #e2e8f0;
+  border: 2.5px dashed #a0aec0;
+  animation: partnerPulse 1.5s ease-in-out infinite;
+}
+.waiting-avatar.partner.connected {
+  background: linear-gradient(135deg, #48bb78, #38ef7d);
+  border: none;
+  box-shadow: 0 4px 12px rgba(72,187,120,0.4);
+  animation: avatarPulse 2s ease-in-out infinite;
+}
+
+@keyframes avatarPulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 4px 12px rgba(102,126,234,0.4); }
+  50%       { transform: scale(1.06); box-shadow: 0 6px 18px rgba(102,126,234,0.6); }
+}
+@keyframes partnerPulse {
+  0%, 100% { transform: scale(1); opacity: 0.6; }
+  50%       { transform: scale(1.04); opacity: 1; }
+}
+
+/* VS divider */
+.waiting-vs {
+  font-size: 0.75em;
+  font-weight: 900;
+  color: #a0aec0;
+  letter-spacing: 1px;
+}
+
+/* Status text */
+.waiting-status-text {
+  text-align: center;
+  flex: 1;
+}
+.waiting-status-title {
+  font-size: 0.92em;
+  font-weight: 800;
+  color: #2d3748;
+  margin-bottom: 3px;
+}
+.waiting-status-sub {
+  font-size: 0.78em;
+  color: #718096;
+  font-weight: 600;
+}
+
+/* ── Animated waiting dots ── */
+.waiting-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+.waiting-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #667eea;
+  animation: waitDot 1.4s ease-in-out infinite;
+}
+.waiting-dot:nth-child(2) { animation-delay: 0.2s; background: #764ba2; }
+.waiting-dot:nth-child(3) { animation-delay: 0.4s; background: #48bb78; }
+@keyframes waitDot {
+  0%, 60%, 100% { transform: translateY(0) scale(1); opacity: 0.4; }
+  30%            { transform: translateY(-8px) scale(1.2); opacity: 1; }
+}
+
+/* ── Steps indicator ── */
+.waiting-steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin-bottom: 16px;
+}
+.waiting-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  flex: 1;
+  position: relative;
+}
+.waiting-step:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 15px; left: 60%;
+  width: 80%; height: 2px;
+  background: #e2e8f0;
+  z-index: 0;
+}
+.waiting-step.done:not(:last-child)::after { background: #68d391; }
+
+.step-circle {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.8em;
+  font-weight: 800;
+  background: #e2e8f0;
+  color: #a0aec0;
+  position: relative; z-index: 1;
+  transition: background 0.3s, color 0.3s, transform 0.3s;
+}
+.waiting-step.done .step-circle {
+  background: linear-gradient(135deg, #48bb78, #38ef7d);
+  color: white;
+  transform: scale(1.1);
+  box-shadow: 0 3px 10px rgba(72,187,120,0.4);
+}
+.waiting-step.active .step-circle {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  animation: stepPulse 1.5s ease-in-out infinite;
+  box-shadow: 0 3px 10px rgba(102,126,234,0.4);
+}
+@keyframes stepPulse {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.15); }
+}
+.step-label {
+  font-size: 0.65em;
+  font-weight: 700;
+  color: #a0aec0;
+  text-align: center;
+  line-height: 1.2;
+}
+.waiting-step.done .step-label,
+.waiting-step.active .step-label { color: #4a5568; }
+
+/* ── Connected celebration ── */
+.partner-joined-banner {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: linear-gradient(135deg, #c6f6d5, #e6fffa);
+  border: 1.5px solid #68d391;
+  border-radius: 14px;
+  padding: 14px 18px;
+  margin-bottom: 14px;
+  animation: bannerPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.partner-joined-banner.visible { display: flex; }
+@keyframes bannerPop {
+  from { transform: scale(0.85); opacity: 0; }
+  to   { transform: scale(1);    opacity: 1; }
+}
+.pjb-icon { font-size: 1.6em; }
+.pjb-text { font-weight: 800; color: #22543d; font-size: 0.95em; }
+.pjb-sub  { font-size: 0.78em; color: #276749; font-weight: 600; margin-top: 2px; }

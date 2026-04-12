@@ -218,13 +218,13 @@ setTimeout(() => {
 socket.on("roomCreated", ({ roomCode, playerName, isHost: host }) => {
   currentRoomCode = roomCode; myPlayerName = playerName; isHost = host;
   GAMERO_RECONNECT.attach(socket, roomCode, playerName);
-  document.getElementById("displayRoomCode").textContent = roomCode;
+  GAMERO_WAITING.build('waitingCardContainer', roomCode, playerName, ['Connected','Pick difficulty','Play!']);
   showScreen("waitingScreen");
 });
 
 socket.on("partnerJoined", ({ partnerName }) => {
   partnerPlayerName = partnerName;
-  document.getElementById("waitingStatus").innerHTML = `<span class="status-badge status-ready">✅ ${partnerName} joined! Pick a difficulty below.</span>`;
+  GAMERO_WAITING.partnerJoined(partnerName);
   if (isHost) {
     document.getElementById("difficultyArea").style.display = "block";
     document.getElementById("confirmDiffBtn").style.display = "block";
@@ -235,8 +235,8 @@ socket.on("partnerJoined", ({ partnerName }) => {
 socket.on("roomJoined", ({ roomCode, playerName, isHost: host, hostName }) => {
   currentRoomCode = roomCode; myPlayerName = playerName; isHost = host; partnerPlayerName = hostName;
   GAMERO_RECONNECT.attach(socket, roomCode, playerName);
-  document.getElementById("displayRoomCode").textContent = roomCode;
-  document.getElementById("waitingStatus").innerHTML = `<span class="status-badge status-ready">✅ Connected! Waiting for host to set difficulty...</span>`;
+  GAMERO_WAITING.build('waitingCardContainer', roomCode, playerName, ['Connected','Pick difficulty','Play!']);
+  GAMERO_WAITING.partnerJoined(hostName);
   showScreen("waitingScreen");
 });
 
@@ -258,19 +258,17 @@ socket.on("difficultyConfirmed", ({ difficulty }) => {
   document.getElementById("setupArea").style.display = "block";
   if (isHost) {
     document.getElementById("confirmDiffBtn").style.display = "none";
-    document.getElementById("waitingStatus").innerHTML = `<span class="status-badge status-ready">✅ ${cfg.label} confirmed — set your number!</span>`;
+    GAMERO_WAITING.advanceStep(2);
   } else {
     document.getElementById("difficultyDisplay").style.display = "block";
     document.getElementById("partnerDifficultyText").textContent = cfg.label;
-    document.getElementById("waitingStatus").innerHTML = `<span class="status-badge status-ready">✅ ${cfg.label} — set your secret number!</span>`;
+    GAMERO_WAITING.advanceStep(2);
   }
 });
 
 socket.on("playerReady", ({ playerName }) => {
-  const setupVisible = document.getElementById("setupArea").style.display !== "none";
-  if (!setupVisible) {
-    document.getElementById("waitingStatus").innerHTML = `<span class="status-badge status-ready">✅ ${playerName} is ready! Waiting for you...</span>`;
-  }
+  // Advance to step 2 when partner is ready
+  GAMERO_WAITING.advanceStep(2);
 });
 
 socket.on("gameStarted", ({ firstTurn, difficulty }) => {
@@ -366,20 +364,105 @@ socket.on("stopTyping", ({ playerName }) => {
 socket.on("taunt", ({ emoji }) => { soundTaunt(); showTauntToast(emoji); });
 
 socket.on("gameOver", ({ winner, hostName, partnerName, hostNumber, partnerNumber, hostGuesses, partnerGuesses }) => {
-  const winnerGuessCount = winner === hostName ? hostGuesses : partnerGuesses;
-  document.getElementById("winnerEmoji").textContent = winner === myPlayerName ? "🎉" : "😢";
-  document.getElementById("winnerText").textContent = `${winner} Won!`;
-  document.getElementById("winnerNameStats").textContent = winner;
-  document.getElementById("winnerGuesses").textContent = winnerGuessCount;
-  displayRevealedNumber("hostNameReveal",    "hostNumberReveal",    hostName,    hostNumber);
-  displayRevealedNumber("partnerNameReveal", "partnerNumberReveal", partnerName, partnerNumber);
-  if (isHost) document.getElementById("hostResetControls").style.display = "block";
+  const iWon = winner === myPlayerName;
+  const winnerGuesses = winner === hostName ? hostGuesses : partnerGuesses;
+  const loserGuesses  = winner === hostName ? partnerGuesses : hostGuesses;
+
+  // Header
+  const header = document.getElementById("gameOverHeader");
+  header.className = "game-over-header" + (iWon ? "" : " lost");
+  document.getElementById("gameOverEmoji").textContent   = iWon ? "🏆" : "😢";
+  document.getElementById("gameOverTitle").textContent   = iWon ? "You Won!" : `${winner} Won!`;
+  document.getElementById("gameOverSubtitle").textContent = `Solved in ${winnerGuesses} guess${winnerGuesses!==1?'es':''}!`;
+
+  // Number reveal row (both numbers shown together)
+  const revealRow = document.getElementById("numberRevealRow");
+  revealRow.innerHTML = "";
+  const hostCubes   = buildRevealCubeRow(hostNumber,   hostName,   "Host");
+  const divider     = document.createElement("div");
+  divider.style.cssText = "width:2px;background:rgba(255,255,255,0.12);border-radius:2px;margin:0 12px";
+  const partnerCubes = buildRevealCubeRow(partnerNumber, partnerName, "Partner");
+  revealRow.appendChild(hostCubes);
+  revealRow.appendChild(divider);
+  revealRow.appendChild(partnerCubes);
+
+  // Stat cards
+  const statsEl = document.getElementById("finalStats");
+  statsEl.innerHTML = "";
+  const myGuesses   = isHost ? hostGuesses   : partnerGuesses;
+  const theirGuesses = isHost ? partnerGuesses : hostGuesses;
+  statsEl.appendChild(makeNWStatCard(myPlayerName,    myGuesses,    iWon));
+  statsEl.appendChild(makeNWStatCard(isHost ? partnerName : hostName, theirGuesses, !iWon));
+
+  // Mini boards
+  const grid = document.getElementById("numbersRevealGrid");
+  grid.innerHTML = "";
+  grid.appendChild(makeNumberPanel(hostName,    hostNumber,    winner === hostName));
+  grid.appendChild(makeNumberPanel(partnerName, partnerNumber, winner === partnerName));
+
+  if (isHost) {
+    document.getElementById("hostResetControls").innerHTML = '<button class="btn-success" onclick="resetGame()">🔄 Play Again</button>';
+    document.getElementById("hostResetControls").style.display = "block";
+  } else {
+    document.getElementById("hostResetControls").innerHTML = '<p style="text-align:center;color:#718096;font-size:0.88em;margin-bottom:12px;font-weight:600">⏳ Waiting for host to start next round...</p>';
+    document.getElementById("hostResetControls").style.display = "block";
+  }
+
   showScreen("gameOverScreen");
-  if (winner === myPlayerName) {
+  if (iWon) {
     soundWin();
-    if (typeof confetti !== 'undefined') confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
-  } else soundWrong();
+    setTimeout(() => confetti({ particleCount: 160, spread: 80, origin: { y: 0.55 }, colors: ['#667eea','#764ba2','#fff','#48bb78'] }), 150);
+  } else {
+    soundWrong();
+  }
 });
+
+function buildRevealCubeRow(number, playerName, role) {
+  const wrap = document.createElement("div");
+  wrap.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:8px";
+  const label = document.createElement("div");
+  label.style.cssText = "font-size:0.7em;color:rgba(255,255,255,0.5);font-weight:700;text-transform:uppercase;letter-spacing:1px";
+  label.textContent = playerName;
+  const row = document.createElement("div");
+  row.style.cssText = "display:flex;gap:6px";
+  for (const digit of number) {
+    const cube = document.createElement("div");
+    cube.className = "reveal-cube";
+    cube.textContent = digit;
+    row.appendChild(cube);
+  }
+  wrap.appendChild(label);
+  wrap.appendChild(row);
+  return wrap;
+}
+
+function makeNWStatCard(name, guesses, isWinner) {
+  const card = document.createElement("div");
+  card.className = `stat-card ${isWinner ? "winner-card" : ""}`;
+  card.innerHTML = `
+    <div class="stat-name">${name}</div>
+    <div class="stat-score">${guesses}</div>
+    <div class="stat-label">guess${guesses!==1?'es':''}</div>
+    ${isWinner ? '<div class="stat-winner-badge">🏆 Winner</div>' : ''}
+  `;
+  return card;
+}
+
+function makeNumberPanel(name, number, isWinner) {
+  const panel = document.createElement("div");
+  panel.className = `number-panel ${isWinner ? "winner-panel" : ""}`;
+  panel.innerHTML = `<div class="number-panel-name">${name}</div>`;
+  const cubes = document.createElement("div");
+  cubes.className = "number-panel-cubes";
+  for (const digit of number) {
+    const cube = document.createElement("div");
+    cube.className = "mini-cube revealed";
+    cube.textContent = digit;
+    cubes.appendChild(cube);
+  }
+  panel.appendChild(cubes);
+  return panel;
+}
 
 socket.on("gameReset", () => {
   mySecretNumber = ""; isMyTurn = false; justGuessed = false;
@@ -406,7 +489,8 @@ socket.on("gameReset", () => {
     document.getElementById("difficultyArea").style.display = "none";
   }
   clearSecretInputs(); clearGuessInputs();
-  document.getElementById("waitingStatus").innerHTML = `<span class="status-badge status-ready">✅ Ready to play again!</span>`;
+  GAMERO_WAITING.build('waitingCardContainer', currentRoomCode, myPlayerName, ['Connected','Pick difficulty','Play!']);
+  GAMERO_WAITING.partnerJoined(partnerPlayerName);
   showScreen("waitingScreen");
 });
 
@@ -418,16 +502,7 @@ socket.on("hostLeft",    () => { alert("Host left the game!");    location.href 
 socket.on("partnerLeft", () => { alert("Partner left the game!"); location.href = "../../index.html"; });
 
 // ─── HELPER FUNCTIONS ─────────────────────────────────────────────────────────
-function displayRevealedNumber(nameId, numberId, name, number) {
-  document.getElementById(nameId).textContent = name;
-  const container = document.getElementById(numberId);
-  container.innerHTML = "";
-  for (let digit of number) {
-    const cube = document.createElement("div");
-    cube.className = "cube green"; cube.textContent = digit;
-    container.appendChild(cube);
-  }
-}
+
 
 function clearSecretInputs() {
   const cfg = DIFF_CONFIG[currentDifficulty];
@@ -518,7 +593,14 @@ function setupDigitInputs(prefix, count) {
     if (!input) continue;
     input.addEventListener("input", function() {
       this.value = this.value.replace(/[^0-9]/g, '');
-      if (this.value.length === 1 && i < count) document.getElementById(`${prefix}${i+1}`)?.focus();
+      if (this.value.length === 1) {
+        this.classList.remove('has-value');
+        void this.offsetWidth;
+        this.classList.add('has-value');
+        if (i < count) document.getElementById(`${prefix}${i+1}`)?.focus();
+      } else {
+        this.classList.remove('has-value');
+      }
       // Typing indicator for guess inputs
       if (prefix === "guess" && isMyTurn) {
         socket.emit("typing", { roomCode: currentRoomCode });

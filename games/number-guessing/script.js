@@ -230,8 +230,8 @@ setTimeout(() => {
 socket.on('roomCreated', ({ roomCode, playerName, isHost: host }) => {
   currentRoomCode = roomCode; myPlayerName = playerName; isHost = host;
   GAMERO_RECONNECT.attach(socket, roomCode, playerName);
-  document.getElementById('roomCodeValue').textContent = roomCode;
   document.getElementById('displayRoomCode').textContent = roomCode;
+  GAMERO_WAITING.build('waitingCardContainer', roomCode, playerName, ['Connected','Set number','Play!']);
   showScreen('waitingScreen');
   if (window.currentLoader) { window.currentLoader.close(); window.currentLoader = null; }
 });
@@ -340,9 +340,10 @@ socket.on('gameReset', () => {
   document.getElementById('myGuessCount').textContent = '0 guesses';
   document.getElementById('partnerGuessCount').textContent = '0 guesses';
   document.getElementById('hostResetControls').style.display = 'none';
-  document.getElementById('setupArea').style.display = 'block';
+  document.getElementById('setupArea').style.display = 'none';
   document.getElementById('secretNumber').value = '';
-  document.getElementById('waitingStatus').innerHTML = '<span class="status-badge status-ready">✅ Ready to play again!</span>';
+  GAMERO_WAITING.build('waitingCardContainer', currentRoomCode, myPlayerName, ['Connected','Set number','Play!']);
+  GAMERO_WAITING.partnerJoined(partnerPlayerName);
   updateMyGuessesUI(); updatePartnerGuessesUI(); updateNumberLine();
   showScreen('waitingScreen');
 });

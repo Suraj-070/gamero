@@ -32,6 +32,7 @@ socket.on('roomCreated', ({ roomCode, playerName, isHost: host }) => {
     isHost = host;
     GAMERO_RECONNECT.attach(socket, roomCode, playerName);
     document.getElementById('setupRoomCode').textContent = roomCode;
+    GAMERO_WAITING.build('waitingCardContainer', roomCode, playerName, ['Connected','Set up','Play!']);
     document.getElementById('setupStatus').innerHTML = 
         '<span class="status-badge status-waiting">⏳ Waiting for partner...</span>';
     showScreen('setupScreen');
@@ -41,6 +42,7 @@ socket.on('partnerJoined', ({ partnerName }) => {
     partnerPlayerName = partnerName;
     document.getElementById('setupStatus').innerHTML = 
         `<span class="status-badge status-ready">✅ ${partnerName} joined!</span>`;
+    GAMERO_WAITING.partnerJoined(partnerName);
     if (!isHost) {
         document.getElementById('setupArea').style.display = 'none';
         document.getElementById('setupStatus').innerHTML += 
@@ -55,6 +57,8 @@ socket.on('roomJoined', ({ roomCode, playerName, isHost: host, hostName }) => {
     partnerPlayerName = hostName;
     GAMERO_RECONNECT.attach(socket, roomCode, playerName);
     document.getElementById('setupRoomCode').textContent = roomCode;
+    GAMERO_WAITING.build('waitingCardContainer', roomCode, playerName, ['Connected','Set up','Play!']);
+    GAMERO_WAITING.partnerJoined(hostName);
     document.getElementById('setupStatus').innerHTML = 
         `<span class="status-badge status-ready">✅ Connected to ${hostName}'s game!</span>`;
     document.getElementById('setupArea').style.display = 'none';
