@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <title>Word Wordle - GAMERO</title>
+  <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <link rel="stylesheet" href="../../css/global.css">
+  <link rel="stylesheet" href="../../css/modal.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+
+  <!-- Home Screen -->
+  <div id="homeScreen" class="screen active">
+    <a href="../../index.html" class="back-link">← Back to GAMERO</a>
+    <h1>🔤 Word Wordle</h1>
+    <p class="subtitle">Race your friend to guess the same secret word!</p>
+    <div class="rules-box">
+      <h3>🎯 How to Play</h3>
+      <ul>
+        <li>🎲 Server picks one secret 5-letter word for both players</li>
+        <li>⚡ Both players guess <strong>simultaneously</strong> — no turns!</li>
+        <li>🎨 Color feedback after each guess:</li>
+      </ul>
+      <div class="color-legend">
+        <div class="legend-item"><div class="legend-cube green">A</div><span>Right position</span></div>
+        <div class="legend-item"><div class="legend-cube yellow">E</div><span>Wrong position</span></div>
+        <div class="legend-item"><div class="legend-cube gray">X</div><span>Not in word</span></div>
+      </div>
+      <ul style="margin-top:10px">
+        <li>👀 You see your opponent's colour pattern — but NOT their letters</li>
+        <li>🏆 First to guess the word wins! (6 guesses max)</li>
+      </ul>
+    </div>
+    <div class="input-group" style="margin-top:20px">
+      <label for="playerName">Your Name:</label>
+      <input type="text" id="playerName" placeholder="Enter your name" autocomplete="off" inputmode="text" maxlength="20"/>
+    </div>
+    <button class="btn-primary" onclick="createRoom()">🎮 Create Game (Host)</button>
+    <button class="btn-success" onclick="showJoinScreen()">🔗 Join Game</button>
+  </div>
+
+  <!-- Join Screen -->
+  <div id="joinScreen" class="screen">
+    <a href="#" class="back-link" onclick="showHomeScreen();return false;">← Back</a>
+    <h1>🔗 Join Game</h1>
+    <div class="input-group">
+      <label for="joinName">Your Name:</label>
+      <input type="text" id="joinName" placeholder="Enter your name" autocomplete="off" inputmode="text" maxlength="20"/>
+    </div>
+    <div class="input-group">
+      <label for="roomCode">Room Code:</label>
+      <input type="text" id="roomCode" placeholder="Enter 6-char code" maxlength="6" style="text-transform:uppercase" autocomplete="off"/>
+    </div>
+    <button class="btn-success" onclick="joinRoom()">Join Room</button>
+    <button class="btn-danger" onclick="showHomeScreen()">Cancel</button>
+    <div id="joinError" class="error-message"></div>
+  </div>
+
+  <!-- Waiting Screen -->
+  <div id="waitingScreen" class="screen">
+    <h1>🔤 Word Wordle</h1>
+    <div class="info-box">
+      <p style="color:#718096;font-size:0.85em;margin-bottom:4px">Room Code</p>
+      <div id="displayRoomCode" class="room-code">------</div>
+      <p style="color:#718096;font-size:0.82em;margin-top:6px">Share with your friend!</p>
+    </div>
+    <div id="waitingStatus" class="info-box">
+      <span class="status-badge status-waiting">⏳ Waiting for partner...</span>
+    </div>
+    <div id="readyArea" style="display:none">
+      <div class="ready-box">
+        <div class="ready-title">🎯 Both players connected!</div>
+        <p class="ready-desc">A random word will be chosen for both of you. First to guess it wins!</p>
+        <button class="btn-primary" id="readyBtn" onclick="setReady()">✅ I'm Ready!</button>
+      </div>
+    </div>
+    <button class="btn-danger" onclick="leaveGame()">🚪 Leave Game</button>
+  </div>
+
+  <!-- Game Screen -->
+  <div id="gameScreen" class="screen">
+    <h1>🔤 Word Wordle</h1>
+    <p class="subtitle">Room: <span id="gameRoomCode"></span></p>
+
+    <!-- Race status bar -->
+    <div class="race-bar" id="raceBar">
+      <div class="race-player me">
+        <span id="myRaceLabel">You</span>
+        <div class="race-track"><div class="race-fill me-fill" id="myRaceFill"></div></div>
+        <span class="race-count" id="myRaceCount">0/6</span>
+      </div>
+      <div class="race-vs">⚡</div>
+      <div class="race-player them">
+        <span id="theirRaceLabel">Them</span>
+        <div class="race-track"><div class="race-fill them-fill" id="theirRaceFill"></div></div>
+        <span class="race-count" id="theirRaceCount">0/6</span>
+      </div>
+    </div>
+
+    <!-- Close call banner -->
+    <div class="close-call-banner" id="closeCallBanner" style="display:none">
+      🔥 Opponent is very close!
+    </div>
+
+    <!-- Typing indicator -->
+    <div class="typing-indicator" id="typingIndicator">
+      <span id="typingName">Opponent</span> is typing
+      <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
+    </div>
+
+    <div class="game-board">
+      <!-- My Board -->
+      <div class="player-board me" id="myBoard">
+        <div class="player-header">
+          <div class="player-name">🎮 <span id="myName"></span></div>
+          <div class="board-label">Your guesses</div>
+        </div>
+        <!-- 6 rows of 5 cubes -->
+        <div class="wordle-grid" id="myGrid"></div>
+        <!-- Letter keyboard -->
+        <div class="letter-keyboard" id="myKeyboard"></div>
+      </div>
+
+      <!-- Opponent Board -->
+      <div class="player-board" id="opponentBoard">
+        <div class="player-header">
+          <div class="player-name">👤 <span id="partnerName"></span></div>
+          <div class="board-label">Their pattern</div>
+        </div>
+        <!-- 6 rows of 5 cubes — colours only, no letters -->
+        <div class="wordle-grid" id="opponentGrid"></div>
+        <div class="hidden-note">Letters hidden 👁️</div>
+      </div>
+    </div>
+
+    <!-- Guess Input -->
+    <div class="guess-input-section" id="guessInputSection">
+      <div class="word-input-row">
+        <input type="text" id="wordInput" placeholder="Type a 5-letter word..." maxlength="5"
+          autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false"
+          inputmode="text" oninput="onWordInput(this)" onkeydown="onWordKeydown(event)"/>
+        <button class="guess-btn" id="guessBtn" onclick="submitGuess()">→</button>
+      </div>
+      <div class="guess-hint" id="guessHint">Type your guess and press Enter or →</div>
+      <!-- Taunt Bar -->
+      <div class="taunt-bar">
+        <button class="taunt-btn" type="button" onclick="sendTaunt('😈')">😈</button>
+        <button class="taunt-btn" type="button" onclick="sendTaunt('😤')">😤</button>
+        <button class="taunt-btn" type="button" onclick="sendTaunt('💀')">💀</button>
+        <button class="taunt-btn" type="button" onclick="sendTaunt('🫡')">🫡</button>
+        <button class="taunt-btn" type="button" onclick="sendTaunt('🔥')">🔥</button>
+      </div>
+    </div>
+
+    <button class="btn-danger" onclick="leaveGame()" style="margin-top:12px">🚪 Leave Game</button>
+  </div>
+
+  <!-- Game Over Screen -->
+  <div id="gameOverScreen" class="screen">
+    <div class="game-over-card">
+      <div class="game-over-emoji" id="gameOverEmoji">🎉</div>
+      <h2 id="gameOverTitle"></h2>
+      <div class="word-reveal">
+        <div class="word-reveal-label">The word was</div>
+        <div class="word-reveal-cubes" id="wordRevealCubes"></div>
+      </div>
+      <div class="game-over-stats" id="gameOverStats"></div>
+    </div>
+    <div id="hostResetControls" style="display:none">
+      <button class="btn-success" onclick="resetGame()">🔄 Play Again</button>
+    </div>
+    <button class="btn-danger" onclick="leaveGame()">🚪 Leave to GAMERO</button>
+  </div>
+
+</div>
+
+<!-- Taunt Toast -->
+<div class="taunt-toast" id="tauntToast"></div>
+
+<!-- Modal -->
+<div id="customModal" class="modal-overlay">
+  <div class="modal-container">
+    <div id="modalIconContainer"><div class="modal-icon" id="modalIcon">ℹ️</div></div>
+    <div id="modalSpinnerContainer" style="display:none"><div class="modal-spinner"></div></div>
+    <div id="modalDotsContainer" style="display:none"><div class="loading-dots"><span></span><span></span><span></span></div></div>
+    <h2 class="modal-title" id="modalTitle">Alert</h2>
+    <p class="modal-message" id="modalMessage">Message</p>
+    <div id="modalProgressContainer" style="display:none">
+      <div class="progress-container"><div class="progress-bar" id="modalProgressBar" style="width:0%"></div></div>
+      <div class="progress-text" id="modalProgressText">0%</div>
+    </div>
+    <div id="modalInputContainer" style="display:none">
+      <input type="text" class="modal-input" id="modalInput" placeholder="Enter value"/>
+    </div>
+    <div class="modal-buttons" id="modalButtons"><button class="modal-btn modal-btn-primary">OK</button></div>
+  </div>
+</div>
+
+<script src="../../js/modal.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

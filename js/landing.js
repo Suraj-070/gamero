@@ -18,6 +18,8 @@ function playGame(gameName) {
         window.location.href = 'games/number-wordle/index.html';
     } else if (gameName === 'trivia-battle') {
         window.location.href = 'games/trivia-battle/index.html';
+    } else if (gameName === 'word-wordle') {
+        window.location.href = 'games/word-wordle/index.html';
     }
 }
 
