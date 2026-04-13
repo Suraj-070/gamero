@@ -1,191 +1,167 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GAMERO - Multiplayer Games</title>
-    
-    <!-- GAMERO Styles -->
-    <link rel="stylesheet" href="css/landing.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="description" content="GAMERO — Free real-time multiplayer games. Play Number Wordle, Word Wordle, Trivia Battle and more with friends online.">
+  <title>GAMERO — Multiplayer Games with Friends</title>
+  <link rel="stylesheet" href="css/landing.css">
 </head>
 <body>
-    <div class="bg-gradient"></div>
-    
-    <div class="landing-container">
-        <!-- Header -->
-        <div class="header">
-            <div class="logo-container">
-                <div class="logo">GAMERO</div>
-            </div>
-            <div class="tagline">Play Multiplayer Games with Friends</div>
-            <div class="subtitle">Real-time gaming platform for long-distance fun</div>
-        </div>
+  <div class="bg-gradient"></div>
 
-        <!-- Stats Bar -->
-        <!-- <div class="stats-bar">
-            <div class="stat-item">
-                <span class="stat-number">4</span>
-                <span class="stat-label">Active Games</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-number">∞</span>
-                <span class="stat-label">Players</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-number">100%</span>
-                <span class="stat-label">Free</span>
-            </div>
-        </div> -->
+  <div class="landing-container">
 
-        <!-- Games Grid -->
-        <div class="games-grid">
-            <!-- Number Guessing -->
-            <div class="game-card" onclick="playGame('number-guessing')">
-                <div class="game-icon">
-                    🎯
-                    <!-- <span class="badge active">Active</span> -->
-                </div>
-                <div class="game-content">
-                    <h2 class="game-title">Number Guessing</h2>
-                    <p class="game-description">
-                        Classic number guessing game! Set your secret number and race to guess your opponent's first. Perfect for video calls with real-time feedback.
-                    </p>
-                    <div class="game-meta">
-                        <div class="meta-item">
-                            <span>👥</span>
-                            <span>2 Players</span>
-                        </div>
-                        <div class="meta-item">
-                            <span>⏱️</span>
-                            <span>5-15 min</span>
-                        </div>
-                        <div class="meta-item">
-                            <span>🎮</span>
-                            <span>Real-time</span>
-                        </div>
-                    </div>
-                    <button class="play-button">Play Now</button>
-                </div>
-            </div>
-
-            <!-- Number Wordle -->
-            <div class="game-card" onclick="playGame('number-wordle')">
-                <div class="game-icon">
-                    🔢
-                    <!-- <span class="badge active">Active</span> -->
-                </div>
-                <div class="game-content">
-                    <h2 class="game-title">Number Wordle</h2>
-                    <p class="game-description">
-                        Wordle meets numbers! Guess your opponent's 4-digit code with color-coded hints. Turn-based strategy with green, yellow, and gray feedback.
-                    </p>
-                    <div class="game-meta">
-                        <div class="meta-item">
-                            <span>👥</span>
-                            <span>2 Players</span>
-                        </div>
-                        <div class="meta-item">
-                            <span>⏱️</span>
-                            <span>10-20 min</span>
-                        </div>
-                        <div class="meta-item">
-                            <span>🧠</span>
-                            <span>Strategy</span>
-                        </div>
-                    </div>
-                    <button class="play-button">Play Now</button>
-                </div>
-            </div>
-
-            <!-- Trivia Battle -->
-            <div class="game-card" onclick="playGame('trivia-battle')">
-                <div class="game-icon">
-                    🧠
-                    <!-- <span class="badge new">New!</span> -->
-                </div>
-                <div class="game-content">
-                    <h2 class="game-title">Trivia Battle</h2>
-                    <p class="game-description">
-                        Test your knowledge! 4,000+ questions across 12 categories. Timed rounds, streak bonuses, and real-time scoring. Think fast!
-                    </p>
-                    <div class="game-meta">
-                        <div class="meta-item">
-                            <span>👥</span>
-                            <span>2 Players</span>
-                        </div>
-                        <div class="meta-item">
-                            <span>⏱️</span>
-                            <span>5-30 min</span>
-                        </div>
-                        <div class="meta-item">
-                            <span>📚</span>
-                            <span>Knowledge</span>
-                        </div>
-                    </div>
-                    <button class="play-button">Play Now</button>
-                </div>
-            </div>
-
-            <!-- Word Wordle -->
-            <div class="game-card" onclick="playGame('word-wordle')">
-                <div class="game-icon">
-                    🔤
-                    <!-- <span class="badge active">Active</span> -->
-                </div>
-                <div class="game-content">
-                    <h2 class="game-title">Word Wordle</h2>
-                    <p class="game-description">
-                        Race your friend to guess the same secret word! Both players guess simultaneously — see their colour pattern but not their letters. First to crack it wins!
-                    </p>
-                    <div class="game-meta">
-                        <div class="meta-item"><span>👥</span><span>2 Players</span></div>
-                        <div class="meta-item"><span>⚡</span><span>Simultaneous</span></div>
-                        <div class="meta-item"><span>🔤</span><span>Real Words</span></div>
-                    </div>
-                    <button class="play-button">Play Now</button>
-                </div>
-            </div>
-
-            <!-- Coming Soon -->
-            <!-- <div class="game-card coming-soon">
-                <div class="game-icon">
-                    🎲
-                    <span class="badge coming-soon">Coming Soon</span>
-                </div>
-                <div class="game-content">
-                    <h2 class="game-title">More Games</h2>
-                    <p class="game-description">
-                        New exciting multiplayer games are in development! Battleship, Chess, Pictionary, and more coming soon.
-                    </p>
-                    <div class="game-meta">
-                        <div class="meta-item">
-                            <span>🚀</span>
-                            <span>In Development</span>
-                        </div>
-                    </div>
-                    <button class="play-button" disabled>Coming Soon</button>
-                </div>
-            </div> -->
-        </div>
-
-        <!-- Footer -->
-        <div class="footer">
-            <p style="font-size: 1.1em; font-weight: 600; margin-bottom: 15px;">
-                Built for gaming with distant friends ❤️
-            </p>
-            <p>Share room codes and play together over video calls</p>
-            <div class="footer-links">
-                <a href="#" class="footer-link">About</a>
-                <a href="#" class="footer-link">How to Play</a>
-                <a href="#" class="footer-link">Feedback</a>
-            </div>
-            <p style="margin-top: 30px; font-size: 0.85em; opacity: 0.6;">
-                © 2025 GAMERO. Made with passion for gaming.
-            </p>
-        </div>
+    <!-- Header -->
+    <div class="header">
+      <div class="logo-container">
+        <div class="logo">GAMERO</div>
+      </div>
+      <div class="tagline">Play Multiplayer Games with Friends</div>
+      <div class="subtitle">Real-time gaming — share a room code and play anywhere</div>
     </div>
 
-    <!-- Landing Page Script -->
-    <script src="js/landing.js"></script>
+    <!-- Stats -->
+    <div class="stats-bar">
+      <div class="stat-item">
+        <span class="stat-number">4</span>
+        <span class="stat-label">Games</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-number">2</span>
+        <span class="stat-label">Players</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-number">∞</span>
+        <span class="stat-label">Rounds</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-number">100%</span>
+        <span class="stat-label">Free</span>
+      </div>
+    </div>
+
+    <!-- Games Grid -->
+    <div class="games-grid">
+
+      <!-- Number Guessing -->
+      <div class="game-card" onclick="playGame('number-guessing')">
+        <div class="game-icon">
+          🎯
+          <span class="badge active">Active</span>
+        </div>
+        <div class="game-content">
+          <h2 class="game-title">Number Guessing</h2>
+          <p class="game-description">
+            Set your secret number and race to guess your opponent's. Higher/lower hints, visual number line, and taunts. Classic fun in real-time.
+          </p>
+          <div class="game-meta">
+            <div class="meta-item"><span>👥</span><span>2 Players</span></div>
+            <div class="meta-item"><span>🔄</span><span>Turn-based</span></div>
+            <div class="meta-item"><span>⏱️</span><span>5–15 min</span></div>
+          </div>
+          <button class="play-button">Play Now</button>
+        </div>
+      </div>
+
+      <!-- Number Wordle -->
+      <div class="game-card" onclick="playGame('number-wordle')">
+        <div class="game-icon">
+          🔢
+          <span class="badge active">Active</span>
+        </div>
+        <div class="game-content">
+          <h2 class="game-title">Number Wordle</h2>
+          <p class="game-description">
+            Wordle with numbers! Guess your opponent's secret code with green/yellow/gray feedback. Three difficulties — easy, medium, and hard with repeats.
+          </p>
+          <div class="game-meta">
+            <div class="meta-item"><span>👥</span><span>2 Players</span></div>
+            <div class="meta-item"><span>🧠</span><span>Strategy</span></div>
+            <div class="meta-item"><span>⏱️</span><span>10–20 min</span></div>
+          </div>
+          <button class="play-button">Play Now</button>
+        </div>
+      </div>
+
+      <!-- Word Wordle -->
+      <div class="game-card" onclick="playGame('word-wordle')">
+        <div class="game-icon">
+          🔤
+          <span class="badge active">Active</span>
+        </div>
+        <div class="game-content">
+          <h2 class="game-title">Word Wordle</h2>
+          <p class="game-description">
+            Race to guess the same secret word simultaneously — no turns! See your opponent's colour pattern but not their letters. 14,855 valid words.
+          </p>
+          <div class="game-meta">
+            <div class="meta-item"><span>👥</span><span>2 Players</span></div>
+            <div class="meta-item"><span>⚡</span><span>Simultaneous</span></div>
+            <div class="meta-item"><span>🔤</span><span>Real Words</span></div>
+          </div>
+          <button class="play-button">Play Now</button>
+        </div>
+      </div>
+
+      <!-- Trivia Battle -->
+      <div class="game-card" onclick="playGame('trivia-battle')">
+        <div class="game-icon">
+          🧠
+          <span class="badge new">New!</span>
+        </div>
+        <div class="game-content">
+          <h2 class="game-title">Trivia Battle</h2>
+          <p class="game-description">
+            4,000+ questions across 12 categories. Timed rounds, streak bonuses, and real-time scoring. Pick a category and outsmart your opponent.
+          </p>
+          <div class="game-meta">
+            <div class="meta-item"><span>👥</span><span>2 Players</span></div>
+            <div class="meta-item"><span>📚</span><span>Knowledge</span></div>
+            <div class="meta-item"><span>⏱️</span><span>5–30 min</span></div>
+          </div>
+          <button class="play-button">Play Now</button>
+        </div>
+      </div>
+
+      <!-- Coming Soon -->
+      <div class="game-card coming-soon">
+        <div class="game-icon">
+          🎲
+          <span class="badge coming-soon">Coming Soon</span>
+        </div>
+        <div class="game-content">
+          <h2 class="game-title">More Games</h2>
+          <p class="game-description">
+            Battleship, Chess, Pictionary and more are in development. Stay tuned!
+          </p>
+          <div class="game-meta">
+            <div class="meta-item"><span>🚀</span><span>In Development</span></div>
+          </div>
+          <button class="play-button" disabled>Coming Soon</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <p style="font-size:1.05em;font-weight:700;color:rgba(255,255,255,0.8);margin-bottom:6px">
+        Built for gaming with distant friends ❤️
+      </p>
+      <p>Share a room code — play together over any video call</p>
+      <div class="footer-links">
+        <a href="#" class="footer-link">How to Play</a>
+        <a href="#" class="footer-link">About</a>
+        <a href="#" class="footer-link">Feedback</a>
+      </div>
+      <p style="margin-top:28px;font-size:0.82em;opacity:0.45">
+        © 2025 GAMERO · Free multiplayer games
+      </p>
+    </div>
+
+  </div>
+
+  <script src="js/landing.js"></script>
 </body>
 </html>
