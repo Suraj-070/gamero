@@ -18,52 +18,65 @@
 
     <!-- Home Screen -->
     <div id="homeScreen" class="screen active">
-        <div class="home-container">
-            <div class="home-header">
-                <div class="logo-badge">
-                    <span class="logo-icon">🧠</span>
-                    <h1 class="logo-text">Trivia<span class="gradient-text">Battle</span></h1>
-                </div>
-                <p class="tagline">Challenge friends. Test knowledge. Win glory.</p>
-            </div>
+      <div class="container" style="padding:0;overflow:hidden;border-radius:22px">
 
-            <div class="stats-showcase">
-                <div class="stat-item">
-                    <div class="stat-number">4,000+</div>
-                    <div class="stat-label">Questions</div>
-                </div>
-                <div class="stat-divider"></div>
-                <div class="stat-item">
-                    <div class="stat-number">24</div>
-                    <div class="stat-label">Categories</div>
-                </div>
-                <div class="stat-divider"></div>
-                <div class="stat-item">
-                    <div class="stat-number">Live</div>
-                    <div class="stat-label">Multiplayer</div>
-                </div>
-            </div>
-
-            <div class="home-card">
-                <div class="input-wrapper">
-                    <label class="input-label">Player Name</label>
-                    <input type="text" id="playerName" class="premium-input" placeholder="Enter your name" autocomplete="off">
-                </div>
-
-                <div class="button-group">
-                    <button class="game-btn primary-btn" onclick="createRoom()">
-                        <span class="btn-icon">👑</span>
-                        <span class="btn-text">Create Game</span>
-                        <span class="btn-subtitle">Host a new battle</span>
-                    </button>
-                    <button class="game-btn secondary-btn" onclick="showJoinScreen()">
-                        <span class="btn-icon">🎯</span>
-                        <span class="btn-text">Join Game</span>
-                        <span class="btn-subtitle">Enter room code</span>
-                    </button>
-                </div>
-            </div>
+        <!-- Hero -->
+        <div class="game-hero hero-trivia">
+          <a href="../../index.html" class="game-hero-back">← GAMERO</a>
+          <span class="game-hero-icon">🧠</span>
+          <div class="game-hero-title">Trivia Battle</div>
+          <div class="game-hero-sub">Challenge friends. Test knowledge. Win glory.</div>
         </div>
+
+        <div style="padding:16px 16px 20px">
+
+          <!-- Stat pills -->
+          <div class="game-pills">
+            <span class="game-pill orange">4,000+ Questions</span>
+            <span class="game-pill orange">12 Categories</span>
+            <span class="game-pill orange">⚡ Live Multiplayer</span>
+          </div>
+
+          <!-- How to play -->
+          <div class="how-to-play">
+            <div class="how-to-play-title">How to play</div>
+            <div class="how-to-play-steps">
+              <div class="htp-step"><div class="htp-num" style="background:linear-gradient(135deg,#f59e0b,#ef4444)">1</div><div class="htp-text">Host picks a <strong>category and difficulty</strong></div></div>
+              <div class="htp-step"><div class="htp-num" style="background:linear-gradient(135deg,#f59e0b,#ef4444)">2</div><div class="htp-text">Both players answer the <strong>same questions</strong> simultaneously</div></div>
+              <div class="htp-step"><div class="htp-num" style="background:linear-gradient(135deg,#f59e0b,#ef4444)">3</div><div class="htp-text"><strong>Score points</strong> for correct answers — streaks give bonus points</div></div>
+              <div class="htp-step"><div class="htp-num" style="background:linear-gradient(135deg,#f59e0b,#ef4444)">4</div><div class="htp-text"><strong>Highest score</strong> after all rounds wins!</div></div>
+            </div>
+          </div>
+
+          <!-- Create -->
+          <div class="entry-card">
+            <div class="entry-card-title">Create a new game</div>
+            <div class="input-group">
+              <label>Your Name</label>
+              <input type="text" id="playerName" placeholder="Enter your name" autocomplete="off" inputmode="text" maxlength="20">
+            </div>
+            <button class="primary-btn" onclick="createRoom()">👑 Create Game (Host)</button>
+          </div>
+
+          <!-- OR -->
+          <div class="or-divider">OR</div>
+
+          <!-- Join -->
+          <div class="join-card">
+            <div class="join-card-title">Join a friend's game</div>
+            <div class="input-group">
+              <label>Your Name</label>
+              <input type="text" id="joinNameInline" placeholder="Enter your name" autocomplete="off" inputmode="text" maxlength="20">
+            </div>
+            <div class="input-group">
+              <label>Room Code</label>
+              <input type="text" id="roomCodeInline" class="room-code-input" placeholder="XXXXXX" maxlength="6" autocomplete="off" inputmode="text">
+            </div>
+            <button class="success-btn" onclick="joinRoomInline()">🎯 Join Game</button>
+          </div>
+
+        </div>
+      </div>
     </div>
 
     <!-- Join Screen -->

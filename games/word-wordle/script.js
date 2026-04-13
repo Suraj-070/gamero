@@ -216,7 +216,7 @@ function showScreen(id) {
   document.getElementById(id).classList.add('active');
 }
 function showHomeScreen()  { showScreen('homeScreen'); document.getElementById('joinError').style.display='none'; }
-function showJoinScreen()  { showScreen('joinScreen');  document.getElementById('joinError').style.display='none'; }
+function showJoinScreen()  { document.getElementById('joinName')?.focus(); document.getElementById('joinError').style.display='none'; }
 
 function createRoom() {
   const name = document.getElementById('playerName').value.trim();

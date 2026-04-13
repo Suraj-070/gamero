@@ -300,6 +300,16 @@ function showJoinScreen() {
     document.getElementById('joinError').style.display = 'none';
 }
 
+function joinRoomInline() {
+    const name = document.getElementById('joinNameInline')?.value.trim()
+                 || document.getElementById('playerName').value.trim();
+    const code = document.getElementById('roomCodeInline')?.value.trim().toUpperCase()
+                 || document.getElementById('roomCode')?.value.trim().toUpperCase();
+    if (!name) { alert('Please enter your name!'); return; }
+    if (!code)  { alert('Please enter a room code!'); return; }
+    socket.emit('joinRoom', { roomCode: code, playerName: name });
+}
+
 function createRoom() {
     const name = document.getElementById('playerName').value.trim();
     if (!name) {

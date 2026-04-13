@@ -18,49 +18,70 @@
 
   <!-- Home Screen -->
   <div id="homeScreen" class="screen active">
-    <a href="../../index.html" class="back-link">← Back to GAMERO</a>
-    <h1>🔤 Word Wordle</h1>
-    <p class="subtitle">Race your friend to guess the same secret word!</p>
-    <div class="rules-box">
-      <h3>🎯 How to Play</h3>
-      <ul>
-        <li>🎲 Server picks one secret 5-letter word for both players</li>
-        <li>⚡ Both players guess <strong>simultaneously</strong> — no turns!</li>
-        <li>🎨 Color feedback after each guess:</li>
-      </ul>
-      <div class="color-legend">
-        <div class="legend-item"><div class="legend-cube green">A</div><span>Right position</span></div>
-        <div class="legend-item"><div class="legend-cube yellow">E</div><span>Wrong position</span></div>
-        <div class="legend-item"><div class="legend-cube gray">X</div><span>Not in word</span></div>
+
+    <!-- Hero -->
+    <div class="game-hero hero-wwordle">
+      <a href="../../index.html" class="game-hero-back">← GAMERO</a>
+      <span class="game-hero-icon">🔤</span>
+      <div class="game-hero-title">Word Wordle</div>
+      <div class="game-hero-sub">Same word. Both guessing. First to crack it wins.</div>
+    </div>
+
+    <!-- Stat pills -->
+    <div class="game-pills">
+      <span class="game-pill teal">👥 2 Players</span>
+      <span class="game-pill teal">⚡ Simultaneous</span>
+      <span class="game-pill teal">🔤 14,855 Words</span>
+    </div>
+
+    <!-- How to play -->
+    <div class="how-to-play">
+      <div class="how-to-play-title">How to play</div>
+      <div class="how-to-play-steps">
+        <div class="htp-step"><div class="htp-num" style="background:linear-gradient(135deg,#11998e,#38ef7d)">1</div><div class="htp-text">Server picks <strong>one secret word</strong> for both players</div></div>
+        <div class="htp-step"><div class="htp-num" style="background:linear-gradient(135deg,#11998e,#38ef7d)">2</div><div class="htp-text">Both guess <strong>at the same time</strong> — no waiting for turns</div></div>
+        <div class="htp-step"><div class="htp-num" style="background:linear-gradient(135deg,#11998e,#38ef7d)">3</div><div class="htp-text">You see their <strong>colour pattern only</strong> — letters stay hidden</div></div>
+        <div class="htp-step"><div class="htp-num" style="background:linear-gradient(135deg,#11998e,#38ef7d)">4</div><div class="htp-text"><strong>First to get all green</strong> wins. Opponent gets remaining guesses.</div></div>
       </div>
-      <ul style="margin-top:10px">
-        <li>👀 You see your opponent's colour pattern — but NOT their letters</li>
-        <li>🏆 First to guess the word wins! (6 guesses max)</li>
-      </ul>
+      <div class="color-legend-row" style="margin-top:14px">
+        <div class="cl-item"><div class="cl-cube green">A</div><span>Right position</span></div>
+        <div class="cl-item"><div class="cl-cube yellow">E</div><span>Wrong position</span></div>
+        <div class="cl-item"><div class="cl-cube gray">X</div><span>Not in word</span></div>
+      </div>
     </div>
-    <div class="input-group" style="margin-top:20px">
-      <label for="playerName">Your Name:</label>
-      <input type="text" id="playerName" placeholder="Enter your name" autocomplete="off" inputmode="text" maxlength="20"/>
+
+    <!-- Create -->
+    <div class="entry-card">
+      <div class="entry-card-title">Create a new game</div>
+      <div class="input-group">
+        <label for="playerName">Your Name</label>
+        <input type="text" id="playerName" placeholder="Enter your name" autocomplete="off" inputmode="text" maxlength="20"/>
+      </div>
+      <button class="btn-primary" onclick="createRoom()">🎮 Create Game (Host)</button>
     </div>
-    <button class="btn-primary" onclick="createRoom()">🎮 Create Game (Host)</button>
-    <button class="btn-success" onclick="showJoinScreen()">🔗 Join Game</button>
+
+    <!-- OR -->
+    <div class="or-divider">OR</div>
+
+    <!-- Join inline -->
+    <div class="join-card">
+      <div class="join-card-title">Join a friend's game</div>
+      <div class="input-group">
+        <label for="joinName">Your Name</label>
+        <input type="text" id="joinName" placeholder="Enter your name" autocomplete="off" inputmode="text" maxlength="20"/>
+      </div>
+      <div class="input-group">
+        <label for="roomCode">Room Code</label>
+        <input type="text" id="roomCode" class="room-code-input" placeholder="XXXXXX" maxlength="6" autocomplete="off"/>
+      </div>
+      <button class="btn-success" onclick="joinRoom()">🔗 Join Game</button>
+      <div id="joinError" class="error-message"></div>
+    </div>
+
   </div>
 
-  <!-- Join Screen -->
-  <div id="joinScreen" class="screen">
-    <a href="#" class="back-link" onclick="showHomeScreen();return false;">← Back</a>
-    <h1>🔗 Join Game</h1>
-    <div class="input-group">
-      <label for="joinName">Your Name:</label>
-      <input type="text" id="joinName" placeholder="Enter your name" autocomplete="off" inputmode="text" maxlength="20"/>
-    </div>
-    <div class="input-group">
-      <label for="roomCode">Room Code:</label>
-      <input type="text" id="roomCode" placeholder="Enter 6-char code" maxlength="6" style="text-transform:uppercase" autocomplete="off"/>
-    </div>
-    <button class="btn-success" onclick="joinRoom()">Join Room</button>
-    <button class="btn-danger" onclick="showHomeScreen()">Cancel</button>
-    <div id="joinError" class="error-message"></div>
+  <!-- Join Screen (kept for script compatibility) -->
+  <div id="joinScreen" class="screen" style="display:none">
   </div>
 
   <!-- Waiting Screen -->

@@ -18,21 +18,59 @@
 
   <!-- Setup Screen -->
   <div id="setupScreen" class="screen active">
-    <a href="../../index.html" class="back-link">← Back to Games</a>
-    <h1>🎯 Number Guessing</h1>
-    <p class="subtitle">Set your secret number and race to guess your opponent's!</p>
-    <div class="input-group">
-      <label>Your Name:</label>
-      <input type="text" id="playerName" placeholder="Enter your name" maxlength="20" autocomplete="off" inputmode="text">
+
+    <!-- Hero -->
+    <div class="game-hero hero-guessing">
+      <a href="../../index.html" class="game-hero-back">← GAMERO</a>
+      <span class="game-hero-icon">🎯</span>
+      <div class="game-hero-title">Number Guessing</div>
+      <div class="game-hero-sub">Set your secret number. Race to guess theirs.</div>
     </div>
-    <button onclick="createRoom()" class="primary-btn">🎮 Create Game Room</button>
-    <div style="text-align:center;margin:20px 0;color:#a0aec0;font-weight:600">— OR —</div>
-    <div class="input-group">
-      <label>Join Existing Game:</label>
-      <input type="text" id="joinName" placeholder="Your name" maxlength="20" style="margin-bottom:10px" autocomplete="off" inputmode="text">
-      <input type="text" id="roomCode" placeholder="Room Code (6 chars)" maxlength="6" style="text-transform:uppercase" autocomplete="off" inputmode="text">
+
+    <!-- Stat pills -->
+    <div class="game-pills">
+      <span class="game-pill">👥 2 Players</span>
+      <span class="game-pill orange">🔄 Turn-based</span>
+      <span class="game-pill green">⏱️ 5–15 min</span>
     </div>
-    <button onclick="joinRoom()" class="secondary-btn">🔗 Join Game</button>
+
+    <!-- How to play -->
+    <div class="how-to-play">
+      <div class="how-to-play-title">How to play</div>
+      <div class="how-to-play-steps">
+        <div class="htp-step"><div class="htp-num">1</div><div class="htp-text">Each player <strong>sets a secret number</strong> — any number you like</div></div>
+        <div class="htp-step"><div class="htp-num">2</div><div class="htp-text">Take turns guessing — get <strong>higher/lower</strong> hints each time</div></div>
+        <div class="htp-step"><div class="htp-num">3</div><div class="htp-text">First to <strong>guess the exact number</strong> wins!</div></div>
+      </div>
+    </div>
+
+    <!-- Create -->
+    <div class="entry-card">
+      <div class="entry-card-title">Create a new game</div>
+      <div class="input-group">
+        <label>Your Name</label>
+        <input type="text" id="playerName" placeholder="Enter your name" maxlength="20" autocomplete="off" inputmode="text">
+      </div>
+      <button onclick="createRoom()" class="primary-btn">🎮 Create Game Room</button>
+    </div>
+
+    <!-- OR -->
+    <div class="or-divider">OR</div>
+
+    <!-- Join -->
+    <div class="join-card">
+      <div class="join-card-title">Join a friend's game</div>
+      <div class="input-group">
+        <label>Your Name</label>
+        <input type="text" id="joinName" placeholder="Enter your name" maxlength="20" autocomplete="off" inputmode="text">
+      </div>
+      <div class="input-group">
+        <label>Room Code</label>
+        <input type="text" id="roomCode" class="room-code-input" placeholder="XXXXXX" maxlength="6" autocomplete="off" inputmode="text">
+      </div>
+      <button onclick="joinRoom()" class="secondary-btn">🔗 Join Game</button>
+    </div>
+
   </div>
 
   <!-- Waiting Screen -->
