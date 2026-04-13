@@ -247,7 +247,7 @@ socket.on("difficultySet", ({ difficulty }) => {
     document.getElementById("difficultyDisplay").style.display = "block";
     document.getElementById("partnerDifficultyText").textContent = cfg.label;
     applyDifficultyToUI(difficulty);
-    document.getElementById("waitingStatus").innerHTML = `<span class="status-badge status-ready">⏳ Host is choosing difficulty...</span>`;
+    // host is choosing difficulty — step indicator stays
   }
 });
 
@@ -558,7 +558,7 @@ async function setSecretNumber() {
   socket.emit("setSecretNumber", { roomCode: currentRoomCode, secretNumber: mySecretNumber });
   document.getElementById("setupArea").style.display = "none";
   document.getElementById("difficultyArea").style.display = "none";
-  document.getElementById("waitingStatus").innerHTML = `<span class="status-badge status-ready">✅ Waiting for partner...</span>`;
+  GAMERO_WAITING.advanceStep(2);
 }
 
 async function submitGuess() {

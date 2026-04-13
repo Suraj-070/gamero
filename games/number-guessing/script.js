@@ -184,7 +184,7 @@ async function setSecretNumber() {
   document.getElementById('mySecretNumber').textContent = number;
   socket.emit('setSecretNumber', { roomCode: currentRoomCode, secretNumber: number });
   document.getElementById('setupArea').style.display = 'none';
-  document.getElementById('waitingStatus').innerHTML = '<span class="status-badge status-waiting">⏳ Waiting for partner to set their number...</span>';
+  GAMERO_WAITING.advanceStep(2);
 }
 
 async function submitGuess() {
@@ -230,7 +230,6 @@ setTimeout(() => {
 socket.on('roomCreated', ({ roomCode, playerName, isHost: host }) => {
   currentRoomCode = roomCode; myPlayerName = playerName; isHost = host;
   GAMERO_RECONNECT.attach(socket, roomCode, playerName);
-  document.getElementById('displayRoomCode').textContent = roomCode;
   GAMERO_WAITING.build('waitingCardContainer', roomCode, playerName, ['Connected','Set number','Play!']);
   showScreen('waitingScreen');
   if (window.currentLoader) { window.currentLoader.close(); window.currentLoader = null; }
@@ -238,23 +237,23 @@ socket.on('roomCreated', ({ roomCode, playerName, isHost: host }) => {
 
 socket.on('partnerJoined', ({ partnerName }) => {
   partnerPlayerName = partnerName;
-  document.getElementById('waitingStatus').innerHTML = `<span class="status-badge status-ready">✅ ${partnerName} joined!</span>`;
+  GAMERO_WAITING.partnerJoined(partnerName);
   document.getElementById('setupArea').style.display = 'block';
 });
 
 socket.on('roomJoined', ({ roomCode, playerName, isHost: host, hostName }) => {
   currentRoomCode = roomCode; myPlayerName = playerName; isHost = host; partnerPlayerName = hostName;
   GAMERO_RECONNECT.attach(socket, roomCode, playerName);
-  document.getElementById('roomCodeValue').textContent = roomCode;
-  document.getElementById('displayRoomCode').textContent = roomCode;
-  document.getElementById('waitingStatus').innerHTML = '<span class="status-badge status-ready">✅ Connected!</span>';
+  GAMERO_WAITING.build('waitingCardContainer', roomCode, playerName, ['Connected','Set number','Play!']);
+  GAMERO_WAITING.partnerJoined(hostName);
   document.getElementById('setupArea').style.display = 'block';
   showScreen('waitingScreen');
   if (window.currentLoader) { window.currentLoader.close(); window.currentLoader = null; }
 });
 
 socket.on('playerReady', ({ playerName }) => {
-  document.getElementById('waitingStatus').innerHTML = `<span class="status-badge status-waiting">⏳ ${playerName} is ready...</span>`;
+  // Partner set their secret number — advance the step indicator
+  GAMERO_WAITING.advanceStep(2);
 });
 
 socket.on('gameStarted', ({ firstTurn }) => {
@@ -343,7 +342,10 @@ socket.on('gameReset', () => {
   document.getElementById('setupArea').style.display = 'none';
   document.getElementById('secretNumber').value = '';
   GAMERO_WAITING.build('waitingCardContainer', currentRoomCode, myPlayerName, ['Connected','Set number','Play!']);
-  GAMERO_WAITING.partnerJoined(partnerPlayerName);
+  if (partnerPlayerName) {
+    GAMERO_WAITING.partnerJoined(partnerPlayerName);
+    document.getElementById('setupArea').style.display = 'block';
+  }
   updateMyGuessesUI(); updatePartnerGuessesUI(); updateNumberLine();
   showScreen('waitingScreen');
 });
@@ -352,8 +354,8 @@ socket.on('hostLeft', async () => { await GameroModal.error('Host left the game!
 socket.on('partnerLeft', async () => {
   await GameroModal.info('Partner left. Waiting for new partner...', 'Partner Left', '👋');
   partnerPlayerName = '';
-  document.getElementById('waitingStatus').innerHTML = '<span class="status-badge status-waiting">⏳ Waiting for partner...</span>';
   document.getElementById('setupArea').style.display = 'none';
+  GAMERO_WAITING.build('waitingCardContainer', currentRoomCode, myPlayerName, ['Connected','Set number','Play!']);
   showScreen('waitingScreen');
 });
 socket.on('error', async (message) => { await GameroModal.error(message, 'Error', '❌'); });
